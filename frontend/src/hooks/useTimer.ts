@@ -1,59 +1,96 @@
 import { useState, useEffect, useRef, useCallback } from 'react';
 
+function formatSeconds(totalSeconds: number) {
+  const safeSeconds = Math.max(0, Math.ceil(totalSeconds));
+  const minutes = Math.floor(safeSeconds / 60);
+  const seconds = safeSeconds % 60;
+  return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
+}
+
 export function useTimer(initialSeconds: number, onComplete: () => void) {
   const [secondsLeft, setSecondsLeft] = useState(initialSeconds);
   const [isRunning, setIsRunning] = useState(false);
-  const expectedRef = useRef<number | null>(null);
-  const timeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  const intervalRef = useRef<ReturnType<typeof setInterval> | null>(null);
+  const endAtRef = useRef<number | null>(null);
   const onCompleteRef = useRef(onComplete);
+  const completedRef = useRef(false);
 
   useEffect(() => {
     onCompleteRef.current = onComplete;
   }, [onComplete]);
 
-  const tick = useCallback(() => {
-    const now = Date.now();
-    const drift = now - (expectedRef.current ?? now);
-
-    setSecondsLeft(prev => {
-      if (prev <= 1) {
-        setIsRunning(false);
-        onCompleteRef.current();
-        return 0;
-      }
-      return prev - 1;
-    });
-
-    expectedRef.current = now + 1000 - drift;
-    timeoutRef.current = setTimeout(tick, Math.max(0, 1000 - drift));
+  const clearIntervalRef = useCallback(() => {
+    if (intervalRef.current) {
+      clearInterval(intervalRef.current);
+      intervalRef.current = null;
+    }
   }, []);
 
-  const start = useCallback(() => {
-    setSecondsLeft(initialSeconds);
+  const finish = useCallback(() => {
+    clearIntervalRef();
+    endAtRef.current = null;
+    setSecondsLeft(0);
+    setIsRunning(false);
+
+    if (!completedRef.current) {
+      completedRef.current = true;
+      onCompleteRef.current();
+    }
+  }, [clearIntervalRef]);
+
+  const updateFromClock = useCallback(() => {
+    if (!endAtRef.current) return;
+
+    const millisecondsLeft = endAtRef.current - Date.now();
+
+    if (millisecondsLeft <= 0) {
+      finish();
+      return;
+    }
+
+    setSecondsLeft(Math.ceil(millisecondsLeft / 1000));
+  }, [finish]);
+
+  const start = useCallback((durationSeconds = initialSeconds) => {
+    clearIntervalRef();
+    completedRef.current = false;
+
+    const normalizedDuration = Math.max(0, durationSeconds);
+    setSecondsLeft(normalizedDuration);
+
+    if (normalizedDuration === 0) {
+      finish();
+      return;
+    }
+
+    endAtRef.current = Date.now() + normalizedDuration * 1000;
     setIsRunning(true);
-    expectedRef.current = Date.now() + 1000;
-    timeoutRef.current = setTimeout(tick, 1000);
-  }, [initialSeconds, tick]);
+    intervalRef.current = setInterval(updateFromClock, 250);
+  }, [clearIntervalRef, finish, initialSeconds, updateFromClock]);
 
   const stop = useCallback(() => {
+    clearIntervalRef();
+    endAtRef.current = null;
     setIsRunning(false);
-    if (timeoutRef.current) clearTimeout(timeoutRef.current);
-  }, []);
+  }, [clearIntervalRef]);
 
-  const reset = useCallback(() => {
+  const reset = useCallback((durationSeconds = initialSeconds) => {
     stop();
-    setSecondsLeft(initialSeconds);
-  }, [stop, initialSeconds]);
+    completedRef.current = false;
+    setSecondsLeft(Math.max(0, durationSeconds));
+  }, [initialSeconds, stop]);
 
   useEffect(() => {
-    return () => {
-      if (timeoutRef.current) clearTimeout(timeoutRef.current);
-    };
-  }, []);
+    return clearIntervalRef;
+  }, [clearIntervalRef]);
 
-  const minutes = Math.floor(secondsLeft / 60);
-  const seconds = secondsLeft % 60;
-  const display = `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
-
-  return { secondsLeft, isRunning, display, start, stop, reset };
+  return {
+    secondsLeft,
+    isRunning,
+    display: formatSeconds(secondsLeft),
+    start,
+    stop,
+    reset,
+  };
 }

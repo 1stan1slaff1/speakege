@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-img-element */
+
 interface TaskDisplayProps {
   title: string;
   description: string;

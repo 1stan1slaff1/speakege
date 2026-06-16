@@ -1,5 +1,16 @@
 node_modules/
 .env
+.env.*
 dist/
 build/
 .DS_Store
+
+# Python
+venv/
+.venv/
+backend/venv/
+__pycache__/
+*.py[cod]
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/

@@ -1,28 +1,61 @@
+export interface RecordingSegment {
+  label: string;
+  seconds: number;
+}
+
+export interface TaskConfig {
+  title: string;
+  prepSeconds: number;
+  recordSeconds: number;
+  maxScore: number;
+  description: string;
+  recordingSegments: readonly RecordingSegment[];
+}
+
 export const TASK_CONFIG = {
   task1: {
-    title: "Чтение вслух",
-    prepSeconds: 90,      // 1.5 minutes
-    recordSeconds: 120,   // 2 minutes
-    description: "Подготовьте и прочитайте текст вслух",
+    title: "Задание 1 — Чтение текста вслух",
+    prepSeconds: 90,
+    recordSeconds: 90,
+    maxScore: 1,
+    description: "Подготовьтесь и прочитайте научно-популярный текст вслух.",
+    recordingSegments: [{ label: "Чтение текста", seconds: 90 }],
   },
   task2: {
-    title: "Составление вопросов",
+    title: "Задание 2 — Условный диалог-расспрос",
     prepSeconds: 90,
-    recordSeconds: 120,
-    description: "Задайте 5 вопросов по теме",
+    recordSeconds: 80,
+    maxScore: 4,
+    description: "Задайте 4 прямых вопроса по рекламному объявлению: по 20 секунд на каждый вопрос.",
+    recordingSegments: [
+      { label: "Вопрос 1", seconds: 20 },
+      { label: "Вопрос 2", seconds: 20 },
+      { label: "Вопрос 3", seconds: 20 },
+      { label: "Вопрос 4", seconds: 20 },
+    ],
   },
   task3: {
-    title: "Монолог по фотографии",
-    prepSeconds: 90,
-    recordSeconds: 120,
-    description: "Опишите фотографию и сравните с личным опытом",
+    title: "Задание 3 — Условное интервью",
+    prepSeconds: 0,
+    recordSeconds: 200,
+    maxScore: 5,
+    description: "Ответьте на 5 вопросов интервьюера: по 40 секунд на каждый ответ.",
+    recordingSegments: [
+      { label: "Ответ 1", seconds: 40 },
+      { label: "Ответ 2", seconds: 40 },
+      { label: "Ответ 3", seconds: 40 },
+      { label: "Ответ 4", seconds: 40 },
+      { label: "Ответ 5", seconds: 40 },
+    ],
   },
   task4: {
-    title: "Диалог-расспрос",
-    prepSeconds: 0,
+    title: "Задание 4 — Голосовое сообщение другу",
+    prepSeconds: 150,
     recordSeconds: 180,
-    description: "Ответьте на вопросы экзаменатора",
+    maxScore: 10,
+    description: "Обоснуйте выбор двух фотографий для проекта и выразите своё мнение: 12–15 фраз.",
+    recordingSegments: [{ label: "Голосовое сообщение", seconds: 180 }],
   },
-} as const;
+} as const satisfies Record<string, TaskConfig>;
 
 export type TaskType = keyof typeof TASK_CONFIG;

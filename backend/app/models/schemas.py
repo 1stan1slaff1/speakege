@@ -39,5 +39,6 @@ class GradeResult(BaseModel):
 # Submissions
 class SubmissionResponse(BaseModel):
     submission_id: str
+    task_type: str
     transcript: str
     grade: GradeResult
