@@ -1,5 +1,6 @@
 import logging
 import uuid
+from pathlib import Path
 
 import httpx
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException
@@ -20,9 +21,22 @@ ALLOWED_AUDIO_CONTENT_TYPES = {
     "audio/mpeg",
     "audio/mp3",
     "audio/mp4",
+    "audio/m4a",
+    "audio/x-m4a",
+    "audio/aac",
     "audio/wav",
     "audio/x-wav",
 }
+AUDIO_CONTENT_TYPE_BY_EXTENSION = {
+    ".webm": "audio/webm",
+    ".ogg": "audio/ogg",
+    ".mp3": "audio/mpeg",
+    ".mp4": "audio/mp4",
+    ".m4a": "audio/mp4",
+    ".aac": "audio/aac",
+    ".wav": "audio/wav",
+}
+GENERIC_UPLOAD_CONTENT_TYPES = {"", "application/octet-stream"}
 
 transcription = TranscriptionService(GroqTranscriptionProvider())
 grading = GradingService(OpenAIGradingProvider())
@@ -39,6 +53,30 @@ def provider_status_message(provider_name: str, status_code: int) -> str:
     return f"{provider_name}: сервис вернул HTTP {status_code}. Проверьте backend-логи."
 
 
+def normalize_audio_content_type(audio: UploadFile) -> str:
+    raw_content_type = (audio.content_type or "").split(";")[0].strip().lower()
+
+    if raw_content_type in ALLOWED_AUDIO_CONTENT_TYPES:
+        # Groq/OpenAI-style APIs usually understand audio/mp4 better than audio/m4a.
+        if raw_content_type in {"audio/m4a", "audio/x-m4a"}:
+            return "audio/mp4"
+        return raw_content_type
+
+    if raw_content_type not in GENERIC_UPLOAD_CONTENT_TYPES:
+        raise HTTPException(status_code=400, detail="Unsupported audio format.")
+
+    suffix = Path(audio.filename or "").suffix.lower()
+    inferred_content_type = AUDIO_CONTENT_TYPE_BY_EXTENSION.get(suffix)
+
+    if not inferred_content_type:
+        raise HTTPException(
+            status_code=400,
+            detail="Unsupported audio format. Use mp3, wav, m4a/mp4, webm, ogg or aac.",
+        )
+
+    return inferred_content_type
+
+
 @router.post("/evaluate", response_model=SubmissionResponse)
 async def evaluate(
     audio: UploadFile = File(...),
@@ -48,9 +86,7 @@ async def evaluate(
     if task_type not in ["task1", "task2", "task3", "task4"]:
         raise HTTPException(status_code=400, detail="Invalid task type.")
 
-    content_type = (audio.content_type or "").split(";")[0].strip().lower()
-    if content_type and content_type not in ALLOWED_AUDIO_CONTENT_TYPES:
-        raise HTTPException(status_code=400, detail="Unsupported audio format.")
+    content_type = normalize_audio_content_type(audio)
 
     audio_bytes = await audio.read(MAX_AUDIO_BYTES + 1)
 
@@ -61,7 +97,7 @@ async def evaluate(
         raise HTTPException(status_code=400, detail="Audio file too large. Maximum size is 16MB.")
 
     try:
-        transcript = await transcription.transcribe(audio_bytes, content_type or "audio/webm")
+        transcript = await transcription.transcribe(audio_bytes, content_type)
     except httpx.HTTPStatusError as exc:
         logger.exception("Groq transcription returned an HTTP error: %s", exc.response.text)
         raise HTTPException(

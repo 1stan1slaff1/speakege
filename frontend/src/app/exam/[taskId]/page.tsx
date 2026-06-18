@@ -10,6 +10,10 @@ import TaskDisplay from '@/components/exam/TaskDisplay';
 
 type Phase = 'idle' | 'checking' | 'preparing' | 'starting' | 'recording' | 'submitting';
 
+const MAX_AUDIO_BYTES = 16 * 1024 * 1024;
+const ACCEPTED_AUDIO_TYPES = 'audio/webm,audio/ogg,audio/mpeg,audio/mp3,audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,.webm,.ogg,.mp3,.mp4,.m4a,.aac,.wav';
+const ACCEPTED_AUDIO_EXTENSIONS = ['webm', 'ogg', 'mp3', 'mp4', 'm4a', 'aac', 'wav'];
+
 interface DemoQuestion {
   promptText: string;
   imageUrl?: string;
@@ -80,6 +84,40 @@ function formatSeconds(totalSeconds: number) {
 }
 
 
+function getFileExtension(fileName: string) {
+  return fileName.split('.').pop()?.toLowerCase() ?? '';
+}
+
+function getAudioFilename(audio: Blob) {
+  if (audio instanceof File && audio.name) return audio.name;
+  if (audio.type.includes('mpeg') || audio.type.includes('mp3')) return 'recording.mp3';
+  if (audio.type.includes('mp4') || audio.type.includes('m4a')) return 'recording.m4a';
+  if (audio.type.includes('ogg')) return 'recording.ogg';
+  if (audio.type.includes('wav')) return 'recording.wav';
+  return 'recording.webm';
+}
+
+function formatFileSize(bytes: number) {
+  if (bytes < 1024 * 1024) return `${Math.max(1, Math.round(bytes / 1024))} КБ`;
+  return `${(bytes / (1024 * 1024)).toFixed(1)} МБ`;
+}
+
+function validateAudioFile(file: File) {
+  if (file.size === 0) return 'Файл пустой. Выберите другой аудиофайл.';
+  if (file.size > MAX_AUDIO_BYTES) return 'Файл слишком большой. Максимальный размер — 16 МБ.';
+
+  const extension = getFileExtension(file.name);
+  const hasAudioMimeType = file.type.startsWith('audio/');
+  const hasAcceptedExtension = ACCEPTED_AUDIO_EXTENSIONS.includes(extension);
+
+  if (!hasAudioMimeType && !hasAcceptedExtension) {
+    return 'Неподдерживаемый формат файла. Загрузите mp3, wav, m4a, mp4, webm или ogg.';
+  }
+
+  return null;
+}
+
+
 async function readApiError(response: Response) {
   const body = await response.text();
 
@@ -144,6 +182,7 @@ export default function ExamPage() {
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
+  const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
 
   const startRecordingPhaseRef = useRef<(() => Promise<void>) | null>(null);
   const finishRecordingRef = useRef<(() => Promise<void>) | null>(null);
@@ -182,8 +221,7 @@ export default function ExamPage() {
 
     try {
       const formData = new FormData();
-      const extension = blob.type.includes('mp4') ? 'mp4' : blob.type.includes('ogg') ? 'ogg' : 'webm';
-      formData.append('audio', blob, `recording.${extension}`);
+      formData.append('audio', blob, getAudioFilename(blob));
       formData.append('task_type', taskId);
       formData.append('prompt_text', question.promptText);
 
@@ -292,6 +330,33 @@ export default function ExamPage() {
     await startRecordingPhase();
   }
 
+  function handleFileChange(event: React.ChangeEvent<HTMLInputElement>) {
+    const file = event.target.files?.[0] ?? null;
+    setSubmitError(null);
+    setSelectedAudioFile(file);
+
+    if (file) {
+      const validationError = validateAudioFile(file);
+      if (validationError) setSubmitError(validationError);
+    }
+  }
+
+  async function handleUploadFile() {
+    if (!selectedAudioFile) {
+      setSubmitError('Выберите аудиофайл для проверки.');
+      return;
+    }
+
+    const validationError = validateAudioFile(selectedAudioFile);
+    if (validationError) {
+      setSubmitError(validationError);
+      return;
+    }
+
+    setPhase('submitting');
+    await submitAudio(selectedAudioFile);
+  }
+
   if (!task || !question || !taskId) {
     return (
       <div className="max-w-3xl mx-auto p-6">
@@ -379,6 +444,39 @@ export default function ExamPage() {
             >
               {prepSeconds > 0 ? 'Начать подготовку' : 'Начать запись'}
             </button>
+
+            <div className="w-full max-w-xl border-t border-gray-200 pt-5 mt-2">
+              <p className="text-sm font-medium text-gray-700 text-center mb-3">
+                Или загрузите готовую аудиозапись для этого задания
+              </p>
+              <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-center">
+                <label className="cursor-pointer rounded-lg border border-gray-300 bg-white px-4 py-2.5 text-sm font-medium text-gray-700 hover:bg-gray-50 text-center">
+                  Выбрать файл
+                  <input
+                    type="file"
+                    accept={ACCEPTED_AUDIO_TYPES}
+                    onChange={handleFileChange}
+                    className="sr-only"
+                  />
+                </label>
+                <button
+                  type="button"
+                  onClick={() => void handleUploadFile()}
+                  disabled={!selectedAudioFile}
+                  className="rounded-lg bg-gray-900 px-4 py-2.5 text-sm font-semibold text-white transition-colors hover:bg-gray-800 disabled:cursor-not-allowed disabled:bg-gray-300 disabled:text-gray-500"
+                >
+                  Отправить файл на проверку
+                </button>
+              </div>
+              {selectedAudioFile && (
+                <p className="mt-3 text-center text-xs text-gray-500">
+                  Выбран файл: <span className="font-medium text-gray-700">{selectedAudioFile.name}</span> ({formatFileSize(selectedAudioFile.size)})
+                </p>
+              )}
+              <p className="mt-2 text-center text-xs text-gray-400">
+                Поддерживаются mp3, wav, m4a/mp4, webm, ogg. Максимум 16 МБ.
+              </p>
+            </div>
           </div>
         )}
 
