@@ -99,6 +99,31 @@ function ResultsContent() {
         </div>
       </div>
 
+      <div className="rounded-lg border border-blue-200 bg-blue-50 p-6 mb-6">
+        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+          <div>
+            <h2 className="font-semibold text-blue-950">Хотите больше заданий?</h2>
+            <p className="mt-2 text-sm leading-6 text-blue-800">
+              Это фиксированное демо-задание. Зарегистрируйтесь, чтобы позже получить доступ к большему числу вариантов, истории попыток и дополнительным заданиям.
+            </p>
+          </div>
+          <div className="flex shrink-0 gap-2">
+            <Link
+              href="/register"
+              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+            >
+              Зарегистрироваться
+            </Link>
+            <Link
+              href="/login"
+              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-blue-700 ring-1 ring-blue-200 transition-colors hover:bg-blue-50"
+            >
+              Войти
+            </Link>
+          </div>
+        </div>
+      </div>
+
       <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
         <h2 className="font-semibold text-gray-900 mb-2">Общий отзыв</h2>
         <p className="text-gray-700 leading-relaxed">{grade.summary}</p>
