@@ -8,7 +8,7 @@ import { useRecorder } from '@/hooks/useRecorder';
 import Timer from '@/components/exam/Timer';
 import TaskDisplay from '@/components/exam/TaskDisplay';
 
-type Phase = 'idle' | 'checking' | 'preparing' | 'starting' | 'recording' | 'submitting';
+type Phase = 'idle' | 'checking' | 'preparing' | 'starting' | 'interviewer' | 'recording' | 'submitting';
 
 const MAX_AUDIO_BYTES = 16 * 1024 * 1024;
 const ACCEPTED_AUDIO_TYPES = 'audio/webm,audio/ogg,audio/mpeg,audio/mp3,audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,.webm,.ogg,.mp3,.mp4,.m4a,.aac,.wav';
@@ -16,19 +16,54 @@ const ACCEPTED_AUDIO_EXTENSIONS = ['webm', 'ogg', 'mp3', 'mp4', 'm4a', 'aac', 'w
 
 interface DemoQuestion {
   promptText: string;
+  gradingPromptText?: string;
   imageUrl?: string;
+  imageUrls?: readonly string[];
+  imageCaptions?: readonly string[];
+  task2Prompts?: readonly string[];
+  interviewerIntro?: string;
+  interviewQuestions?: readonly string[];
 }
+
+function makeSvgDataUri(title: string, subtitle: string, background: string, accent: string) {
+  const svg = `<svg xmlns="http://www.w3.org/2000/svg" width="640" height="420" viewBox="0 0 640 420">
+    <rect width="640" height="420" fill="${background}"/>
+    <circle cx="520" cy="80" r="46" fill="${accent}" opacity="0.35"/>
+    <rect x="70" y="255" width="500" height="72" rx="18" fill="#ffffff" opacity="0.88"/>
+    <circle cx="210" cy="205" r="42" fill="#ffffff" opacity="0.82"/>
+    <circle cx="315" cy="190" r="46" fill="#ffffff" opacity="0.82"/>
+    <circle cx="425" cy="210" r="40" fill="#ffffff" opacity="0.82"/>
+    <rect x="175" y="240" width="285" height="44" rx="18" fill="${accent}" opacity="0.72"/>
+    <text x="320" y="350" text-anchor="middle" font-family="Arial, sans-serif" font-size="30" font-weight="700" fill="#1f2937">${title}</text>
+    <text x="320" y="382" text-anchor="middle" font-family="Arial, sans-serif" font-size="18" fill="#4b5563">${subtitle}</text>
+  </svg>`;
+
+  return `data:image/svg+xml,${encodeURIComponent(svg)}`;
+}
+
+const TASK4_IMAGE_1 = makeSvgDataUri('Photo 1', 'Family picnic in a park', '#dcfce7', '#22c55e');
+const TASK4_IMAGE_2 = makeSvgDataUri('Photo 2', 'Teenagers watching a film at home', '#dbeafe', '#3b82f6');
+
+const TASK3_INTERVIEW_QUESTIONS = [
+  'In what region do you live? Do you live in a big city, a town or in a village?',
+  'Do you live in a flat or in a house? What is it like?',
+  'What would you like to change about your flat or house? Why?',
+  'What do you like and dislike about your neighbourhood?',
+  'What kind of housing would you like to have in the future?',
+] as const;
+
+const TASK3_INTERVIEW_INTRO = "Hello! It's Teenagers Round the World Channel. Our guest today is a teenager from Russia and we are going to discuss teenagers' attitude to their accommodation. Please answer five questions. So, let's get started.";
 
 const DEMO_QUESTIONS: Record<TaskType, DemoQuestion> = {
   task1: {
-    promptText: `Imagine that you are preparing a project with your friend. You have found some interesting material for the presentation and you want to read this text to your friend. You have 1.5 minutes to read the text silently, then be ready to read it out aloud. You will not have more than 1.5 minutes to read it.
+    promptText: `Task 1. You are going to read the text aloud. You have 1.5 minutes to read the text silently, then be ready to read it aloud. Remember that you will not have more than 1.5 minutes for reading aloud.
 
 Snowflakes are ice crystals which fall through the Earth's atmosphere as snow. People like to think that every snowflake has a unique shape. However, it is not true. While snowflakes may look different, they can still be classified into eight groups and about eighty different variants. Some scientists have done a lot of research into making a kind of catalogue of snowflakes.
 
 The most typical patterns for a snowflake are needles, columns, plates and rimes. The shape and the pattern of a snowflake largely depend on the weather conditions. The study of snowflakes has identified that long, thin needle-like ice crystals form at around zero, while a lower temperature will lead to very flat crystals. Further changes in temperature as a snowflake falls determine more complicated shapes of snowflakes. The size of a snowflake also depends on the air temperature.`,
   },
   task2: {
-    promptText: `Study the advertisement.
+    promptText: `Task 2. Study the advertisement.
 
 THE BEST CLINIC IN TOWN!
 
@@ -40,22 +75,28 @@ You are considering visiting the clinic and now you would like to get more infor
 4) family discounts
 
 You have 20 seconds to ask each question.`,
+    task2Prompts: ['location', 'public transport', 'dentist', 'family discounts'],
   },
   task3: {
-    promptText: `You are going to give an interview. You have to answer five questions. Give full answers to the questions: 2–3 sentences.
+    promptText: `Task 3. You are going to give an interview. You have to answer five questions.
+
+Give full answers to the questions: 2–3 sentences.
 
 Remember that you have 40 seconds to answer each question.
 
-Interviewer: Hello! It's Teenagers Round the World Channel. Our guest today is a teenager from Russia and we are going to discuss teenagers' attitude to their accommodation. Please answer five questions. So, let's get started.
+The questions are played by the interviewer and are not shown on the screen, closer to the real exam format.`,
+    gradingPromptText: `Task 3. You are going to give an interview. You have to answer five questions. Give full answers to the questions: 2–3 sentences. Remember that you have 40 seconds to answer each question.
 
-1) In what region do you live? Do you live in a big city, a town or in a village?
-2) Do you live in a flat or in a house? What is it like?
-3) What would you like to change about your flat or house? Why?
-4) What do you like and dislike about your neighbourhood?
-5) What kind of housing would you like to have in the future?`,
+Interviewer intro:
+${TASK3_INTERVIEW_INTRO}
+
+Questions:
+${TASK3_INTERVIEW_QUESTIONS.map((question, index) => `${index + 1}) ${question}`).join('\n')}`,
+    interviewerIntro: TASK3_INTERVIEW_INTRO,
+    interviewQuestions: TASK3_INTERVIEW_QUESTIONS,
   },
   task4: {
-    promptText: `Imagine that you and your friend are doing a school project “Ideal weekend”. You have found two photos to illustrate it but for technical reasons you cannot send them now. Leave a voice message to your friend explaining your choice of the photos and sharing some ideas about the project.
+    promptText: `Task 4. Imagine that you and your friend are doing a school project “Ideal weekend”. You have found two photos to illustrate it but for technical reasons you cannot send them now. Leave a voice message to your friend explaining your choice of the photos and sharing some ideas about the project.
 
 In 2.5 minutes be ready to:
 
@@ -64,10 +105,21 @@ In 2.5 minutes be ready to:
 • mention the disadvantages (1–2) of the two ways to spend the weekend;
 • express your opinion on the subject of the project — say which way of spending the weekend presented in the pictures you prefer and why.
 
+You will speak for not more than 3 minutes: 12–15 sentences. You have to talk continuously.`,
+    gradingPromptText: `Task 4. Imagine that you and your friend are doing a school project “Ideal weekend”. You have found two photos to illustrate it but for technical reasons you cannot send them now. Leave a voice message to your friend explaining your choice of the photos and sharing some ideas about the project.
+
 Photo 1: a family is having a picnic in a park.
 Photo 2: two teenagers are watching a film at home.
 
+In 2.5 minutes be ready to:
+- explain the choice of the illustrations for the project by briefly describing them and noting the differences;
+- mention the advantages (1–2) of the two ways to spend the weekend;
+- mention the disadvantages (1–2) of the two ways to spend the weekend;
+- express your opinion on the subject of the project — say which way of spending the weekend presented in the pictures you prefer and why.
+
 You will speak for not more than 3 minutes: 12–15 sentences. You have to talk continuously.`,
+    imageUrls: [TASK4_IMAGE_1, TASK4_IMAGE_2],
+    imageCaptions: ['Photo 1', 'Photo 2'],
   },
 };
 
@@ -83,6 +135,11 @@ function formatSeconds(totalSeconds: number) {
   return `${String(minutes).padStart(2, '0')}:${String(seconds).padStart(2, '0')}`;
 }
 
+function delay(milliseconds: number) {
+  return new Promise<void>(resolve => {
+    window.setTimeout(resolve, milliseconds);
+  });
+}
 
 function getFileExtension(fileName: string) {
   return fileName.split('.').pop()?.toLowerCase() ?? '';
@@ -117,6 +174,69 @@ function validateAudioFile(file: File) {
   return null;
 }
 
+function getAudioContextClass() {
+  return window.AudioContext || (window as unknown as { webkitAudioContext?: typeof AudioContext }).webkitAudioContext;
+}
+
+async function playBeep() {
+  const AudioContextClass = getAudioContextClass();
+  if (!AudioContextClass) return;
+
+  const audioContext = new AudioContextClass();
+  const oscillator = audioContext.createOscillator();
+  const gain = audioContext.createGain();
+
+  oscillator.type = 'sine';
+  oscillator.frequency.value = 880;
+  gain.gain.value = 0.08;
+
+  oscillator.connect(gain);
+  gain.connect(audioContext.destination);
+  oscillator.start();
+  oscillator.stop(audioContext.currentTime + 0.16);
+
+  await delay(220);
+  await audioContext.close();
+}
+
+function speakText(text: string) {
+  return new Promise<boolean>(resolve => {
+    if (!('speechSynthesis' in window) || typeof SpeechSynthesisUtterance === 'undefined') {
+      resolve(false);
+      return;
+    }
+
+    let resolved = false;
+    const utterance = new SpeechSynthesisUtterance(text);
+    const fallbackTimeout = window.setTimeout(() => {
+      if (!resolved) {
+        resolved = true;
+        resolve(false);
+      }
+    }, Math.max(6000, text.length * 95));
+
+    utterance.lang = 'en-US';
+    utterance.rate = 0.92;
+    utterance.pitch = 1;
+    utterance.onend = () => {
+      if (!resolved) {
+        resolved = true;
+        window.clearTimeout(fallbackTimeout);
+        resolve(true);
+      }
+    };
+    utterance.onerror = () => {
+      if (!resolved) {
+        resolved = true;
+        window.clearTimeout(fallbackTimeout);
+        resolve(false);
+      }
+    };
+
+    window.speechSynthesis.cancel();
+    window.speechSynthesis.speak(utterance);
+  });
+}
 
 async function readApiError(response: Response) {
   const body = await response.text();
@@ -179,18 +299,23 @@ export default function ExamPage() {
   const prepSeconds = task?.prepSeconds ?? 0;
   const recordingSegments = task?.recordingSegments ?? [];
   const recordDuration = recordingSegments.reduce((sum, segment) => sum + segment.seconds, 0);
+  const isTask3 = taskId === 'task3';
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
+  const [currentInterviewQuestionIndex, setCurrentInterviewQuestionIndex] = useState(0);
+  const [fallbackInterviewQuestionText, setFallbackInterviewQuestionText] = useState<string | null>(null);
 
   const startRecordingPhaseRef = useRef<(() => Promise<void>) | null>(null);
-  const finishRecordingRef = useRef<(() => Promise<void>) | null>(null);
+  const recordTimerCompleteRef = useRef<(() => Promise<void>) | null>(null);
 
   const {
     isRecording,
     error: recorderError,
     start: startRecording,
+    pause: pauseRecording,
+    resume: resumeRecording,
     stop: stopRecording,
   } = useRecorder();
 
@@ -211,7 +336,7 @@ export default function ExamPage() {
     stop: stopRecordTimer,
     reset: resetRecordTimer,
   } = useTimer(recordDuration, () => {
-    void finishRecordingRef.current?.();
+    void recordTimerCompleteRef.current?.();
   });
 
   async function submitAudio(blob: Blob) {
@@ -223,7 +348,7 @@ export default function ExamPage() {
       const formData = new FormData();
       formData.append('audio', blob, getAudioFilename(blob));
       formData.append('task_type', taskId);
-      formData.append('prompt_text', question.promptText);
+      formData.append('prompt_text', question.gradingPromptText ?? question.promptText);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
       const response = await fetch(`${apiUrl}/evaluate`, {
@@ -262,8 +387,114 @@ export default function ExamPage() {
     await submitAudio(blob);
   }
 
+  async function beginTask3Answer() {
+    const resumed = resumeRecording();
+
+    if (!resumed) {
+      setSubmitError('Не удалось возобновить запись ответа. Попробуйте ещё раз.');
+      setPhase('idle');
+      return;
+    }
+
+    setPhase('recording');
+    startRecordTimer(40);
+  }
+
+  async function playTask3Question(index: number) {
+    if (!question?.interviewQuestions) return;
+
+    const questionText = question.interviewQuestions[index];
+    setCurrentInterviewQuestionIndex(index);
+    setFallbackInterviewQuestionText(null);
+    setPhase('interviewer');
+    pauseRecording();
+
+    await playBeep();
+
+    if (index === 0 && question.interviewerIntro) {
+      const introPlayed = await speakText(question.interviewerIntro);
+      if (!introPlayed) await delay(1500);
+    }
+
+    const played = await speakText(`Question ${index + 1}. ${questionText}`);
+
+    if (!played) {
+      setFallbackInterviewQuestionText(questionText);
+      await delay(6000);
+    }
+
+    await playBeep();
+    await beginTask3Answer();
+  }
+
+  async function finishTask3Interview() {
+    stopRecordTimer();
+    pauseRecording();
+    setPhase('submitting');
+
+    const blob = await stopRecording();
+
+    if (!blob || blob.size === 0) {
+      setSubmitError('Запись интервью не получилась. Попробуйте ещё раз.');
+      setPhase('idle');
+      resetRecordTimer(recordDuration);
+      return;
+    }
+
+    await submitAudio(blob);
+  }
+
+  async function completeTask3Answer() {
+    stopRecordTimer();
+    pauseRecording();
+
+    const nextIndex = currentInterviewQuestionIndex + 1;
+    const questionCount = question?.interviewQuestions?.length ?? 0;
+
+    if (nextIndex < questionCount) {
+      await playTask3Question(nextIndex);
+      return;
+    }
+
+    await finishTask3Interview();
+  }
+
+  async function handleRecordTimerComplete() {
+    if (isTask3 && phase === 'recording') {
+      await completeTask3Answer();
+      return;
+    }
+
+    await finishRecording();
+  }
+
+  async function startTask3InterviewFlow() {
+    if (!question?.interviewQuestions?.length) return;
+
+    setSubmitError(null);
+    setCurrentInterviewQuestionIndex(0);
+    setFallbackInterviewQuestionText(null);
+    resetRecordTimer(40);
+    setPhase('starting');
+
+    const started = await startRecording();
+
+    if (!started) {
+      setPhase('idle');
+      return;
+    }
+
+    pauseRecording();
+    await playTask3Question(0);
+  }
+
   async function startRecordingPhase() {
     if (!task || !question || recordDuration <= 0) return;
+
+    if (isTask3) {
+      await startTask3InterviewFlow();
+      return;
+    }
 
     setSubmitError(null);
     resetRecordTimer(recordDuration);
@@ -282,8 +513,14 @@ export default function ExamPage() {
 
   useEffect(() => {
     startRecordingPhaseRef.current = startRecordingPhase;
-    finishRecordingRef.current = finishRecording;
+    recordTimerCompleteRef.current = handleRecordTimerComplete;
   });
+
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    };
+  }, []);
 
   async function checkMicrophone() {
     setSubmitError(null);
@@ -310,7 +547,7 @@ export default function ExamPage() {
     if (!task || !question) return;
 
     resetPrepTimer(prepSeconds);
-    resetRecordTimer(recordDuration);
+    resetRecordTimer(isTask3 ? 40 : recordDuration);
 
     const microphoneReady = await checkMicrophone();
     if (!microphoneReady) return;
@@ -366,13 +603,22 @@ export default function ExamPage() {
   }
 
   const secondsElapsed = phase === 'recording' ? recordDuration - recordSecondsLeft : 0;
-  const currentSegment = getCurrentSegment(recordingSegments, secondsElapsed);
+  const currentSegment = isTask3
+    ? {
+        index: currentInterviewQuestionIndex,
+        segment: recordingSegments[currentInterviewQuestionIndex] ?? recordingSegments[0],
+        secondsLeft: recordSecondsLeft,
+      }
+    : getCurrentSegment(recordingSegments, secondsElapsed);
   const segmentDisplay = currentSegment ? formatSeconds(currentSegment.secondsLeft) : formatSeconds(recordSecondsLeft);
   const segmentLabel = currentSegment
     ? recordingSegments.length > 1
       ? `${currentSegment.segment.label} из ${recordingSegments.length}`
       : 'Время ответа'
     : 'Время ответа';
+  const task2CurrentPrompt = taskId === 'task2' && currentSegment
+    ? question.task2Prompts?.[currentSegment.index]
+    : null;
 
   return (
     <div className="max-w-3xl mx-auto p-6 min-h-screen bg-gray-50">
@@ -381,6 +627,8 @@ export default function ExamPage() {
         description={task.description}
         promptText={question.promptText}
         imageUrl={question.imageUrl}
+        imageUrls={question.imageUrls}
+        imageCaptions={question.imageCaptions}
       />
 
       <div className="bg-white border border-gray-200 rounded-lg p-8 flex flex-col items-center gap-6">
@@ -401,6 +649,31 @@ export default function ExamPage() {
           </>
         )}
 
+        {phase === 'interviewer' && (
+          <div className="flex flex-col items-center gap-4 text-center">
+            <div className="animate-pulse rounded-full h-12 w-12 bg-blue-100 flex items-center justify-center text-2xl" aria-hidden="true">
+              🎧
+            </div>
+            <div>
+              <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
+                Интервьюер задаёт вопрос
+              </p>
+              <p className="text-3xl font-bold text-gray-950 mt-1">
+                Question {currentInterviewQuestionIndex + 1} / {question.interviewQuestions?.length ?? 5}
+              </p>
+            </div>
+            <p className="text-sm text-gray-500 max-w-md">
+              Слушайте вопрос. После звукового сигнала начнётся запись ответа на 40 секунд.
+            </p>
+            {fallbackInterviewQuestionText && (
+              <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-left text-sm text-yellow-900 max-w-xl">
+                <p className="font-semibold mb-1">Не удалось надёжно проиграть голос интервьюера. Текст вопроса показан как fallback:</p>
+                <p>{fallbackInterviewQuestionText}</p>
+              </div>
+            )}
+          </div>
+        )}
+
         {phase === 'recording' && (
           <>
             <Timer
@@ -409,6 +682,19 @@ export default function ExamPage() {
               isRunning={isRecordTimerRunning}
               isRecording={isRecording}
             />
+
+            {task2CurrentPrompt && (
+              <div className="rounded-lg border border-blue-100 bg-blue-50 px-5 py-3 text-center">
+                <p className="text-xs font-medium uppercase tracking-wide text-blue-600">Спросите о</p>
+                <p className="text-lg font-semibold text-blue-950">{task2CurrentPrompt}</p>
+              </div>
+            )}
+
+            {isTask3 && (
+              <p className="text-sm text-gray-500 text-center max-w-md">
+                Отвечайте на услышанный вопрос полным ответом: 2–3 предложения. Текст вопроса на экзамене не показывается.
+              </p>
+            )}
 
             {recordingSegments.length > 1 && currentSegment && (
               <div className="flex gap-2" aria-label="Прогресс по вопросам">
@@ -427,9 +713,11 @@ export default function ExamPage() {
               </div>
             )}
 
-            <p className="text-xs text-gray-500 text-center">
-              Общая запись: {formatSeconds(recordSecondsLeft)} осталось. Паузы и перезапуска во время ответа нет.
-            </p>
+            {!isTask3 && (
+              <p className="text-xs text-gray-500 text-center">
+                Общая запись: {formatSeconds(recordSecondsLeft)} осталось. Паузы и перезапуска во время ответа нет.
+              </p>
+            )}
           </>
         )}
 
@@ -442,7 +730,7 @@ export default function ExamPage() {
               onClick={() => void handleStart()}
               className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-8 py-3 rounded-lg transition-colors"
             >
-              {prepSeconds > 0 ? 'Начать подготовку' : 'Начать запись'}
+              {prepSeconds > 0 ? 'Начать подготовку' : isTask3 ? 'Начать интервью' : 'Начать запись'}
             </button>
 
             <div className="w-full max-w-xl border-t border-gray-200 pt-5 mt-2">

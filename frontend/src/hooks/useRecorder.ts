@@ -14,6 +14,7 @@ function getSupportedMimeType() {
 
 export function useRecorder() {
   const [isRecording, setIsRecording] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const [audioBlob, setAudioBlob] = useState<Blob | null>(null);
   const [error, setError] = useState<string | null>(null);
 
@@ -30,6 +31,7 @@ export function useRecorder() {
   const start = useCallback(async () => {
     setError(null);
     setAudioBlob(null);
+    setIsPaused(false);
     chunksRef.current = [];
 
     if (!navigator.mediaDevices?.getUserMedia || typeof MediaRecorder === 'undefined') {
@@ -62,6 +64,7 @@ export function useRecorder() {
         const blob = new Blob(chunksRef.current, { type: blobType });
         setAudioBlob(blob);
         setIsRecording(false);
+        setIsPaused(false);
         cleanupStream();
         mediaRecorderRef.current = null;
         stopResolverRef.current?.(blob);
@@ -70,16 +73,50 @@ export function useRecorder() {
 
       mediaRecorder.start(250);
       setIsRecording(true);
+      setIsPaused(false);
       return true;
     } catch (caughtError) {
       console.error(caughtError);
       cleanupStream();
       mediaRecorderRef.current = null;
       setIsRecording(false);
+      setIsPaused(false);
       setError('Не удалось получить доступ к микрофону. Проверьте разрешения браузера.');
       return false;
     }
   }, [cleanupStream]);
+
+  const pause = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+
+    if (!recorder || recorder.state !== 'recording') return false;
+
+    recorder.pause();
+    setIsRecording(false);
+    setIsPaused(true);
+    return true;
+  }, []);
+
+  const resume = useCallback(() => {
+    const recorder = mediaRecorderRef.current;
+
+    if (!recorder) return false;
+
+    if (recorder.state === 'paused') {
+      recorder.resume();
+      setIsRecording(true);
+      setIsPaused(false);
+      return true;
+    }
+
+    if (recorder.state === 'recording') {
+      setIsRecording(true);
+      setIsPaused(false);
+      return true;
+    }
+
+    return false;
+  }, []);
 
   const stop = useCallback(() => {
     return new Promise<Blob | null>((resolve) => {
@@ -87,6 +124,7 @@ export function useRecorder() {
 
       if (!recorder || recorder.state === 'inactive') {
         setIsRecording(false);
+        setIsPaused(false);
         cleanupStream();
         resolve(null);
         return;
@@ -97,5 +135,5 @@ export function useRecorder() {
     });
   }, [cleanupStream]);
 
-  return { isRecording, audioBlob, error, start, stop };
+  return { isRecording, isPaused, audioBlob, error, start, pause, resume, stop };
 }

@@ -5,6 +5,8 @@ interface TaskDisplayProps {
   description: string;
   promptText: string;
   imageUrl?: string;
+  imageUrls?: readonly string[];
+  imageCaptions?: readonly string[];
 }
 
 export default function TaskDisplay({
@@ -12,7 +14,11 @@ export default function TaskDisplay({
   description,
   promptText,
   imageUrl,
+  imageUrls,
+  imageCaptions,
 }: TaskDisplayProps) {
+  const images = imageUrls?.length ? imageUrls : imageUrl ? [imageUrl] : [];
+
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
       <div className="mb-4">
@@ -23,12 +29,22 @@ export default function TaskDisplay({
         <p className="text-gray-800 leading-relaxed whitespace-pre-wrap">
           {promptText}
         </p>
-        {imageUrl && (
-          <img
-            src={imageUrl}
-            alt="Task image"
-            className="mt-4 rounded-lg max-w-full max-h-64 object-contain"
-          />
+
+        {images.length > 0 && (
+          <div className={`mt-5 grid gap-4 ${images.length > 1 ? 'sm:grid-cols-2' : ''}`}>
+            {images.map((src, index) => (
+              <figure key={src} className="rounded-lg border border-gray-200 bg-gray-50 p-3">
+                <img
+                  src={src}
+                  alt={imageCaptions?.[index] ?? `Task image ${index + 1}`}
+                  className="rounded-md w-full max-h-72 object-contain bg-white"
+                />
+                <figcaption className="mt-2 text-center text-sm font-medium text-gray-700">
+                  {imageCaptions?.[index] ?? `Photo ${index + 1}`}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
         )}
       </div>
     </div>
