@@ -9,11 +9,18 @@ import { useRecorder } from '@/hooks/useRecorder';
 import Timer from '@/components/exam/Timer';
 import TaskDisplay from '@/components/exam/TaskDisplay';
 
-type Phase = 'idle' | 'checking' | 'preparing' | 'starting' | 'interviewer' | 'recording' | 'submitting';
+type Phase = 'idle' | 'checking' | 'preparing' | 'starting' | 'listening' | 'recording' | 'submitting';
 
 const MAX_AUDIO_BYTES = 16 * 1024 * 1024;
 const ACCEPTED_AUDIO_TYPES = 'audio/webm,audio/ogg,audio/mpeg,audio/mp3,audio/mp4,audio/m4a,audio/x-m4a,audio/aac,audio/wav,audio/x-wav,.webm,.ogg,.mp3,.mp4,.m4a,.aac,.wav';
 const ACCEPTED_AUDIO_EXTENSIONS = ['webm', 'ogg', 'mp3', 'mp4', 'm4a', 'aac', 'wav'];
+
+interface TaskAudioConfig {
+  intro?: string;
+  startCue?: string;
+  questionCues?: readonly string[];
+  end?: string;
+}
 
 interface DemoQuestion {
   promptText: string;
@@ -24,6 +31,7 @@ interface DemoQuestion {
   task2Prompts?: readonly string[];
   interviewerIntro?: string;
   interviewQuestions?: readonly string[];
+  audio?: TaskAudioConfig;
 }
 
 function makeSvgDataUri(title: string, subtitle: string, background: string, accent: string) {
@@ -62,6 +70,9 @@ const DEMO_QUESTIONS: Record<TaskType, DemoQuestion> = {
 Snowflakes are ice crystals which fall through the Earth's atmosphere as snow. People like to think that every snowflake has a unique shape. However, it is not true. While snowflakes may look different, they can still be classified into eight groups and about eighty different variants. Some scientists have done a lot of research into making a kind of catalogue of snowflakes.
 
 The most typical patterns for a snowflake are needles, columns, plates and rimes. The shape and the pattern of a snowflake largely depend on the weather conditions. The study of snowflakes has identified that long, thin needle-like ice crystals form at around zero, while a lower temperature will lead to very flat crystals. Further changes in temperature as a snowflake falls determine more complicated shapes of snowflakes. The size of a snowflake also depends on the air temperature.`,
+    audio: {
+      intro: '/audio/ege/task1/intro.mp3',
+    },
   },
   task2: {
     promptText: `Task 2. Study the advertisement.
@@ -77,6 +88,15 @@ You are considering visiting the clinic and now you would like to get more infor
 
 You have 20 seconds to ask each question.`,
     task2Prompts: ['location', 'public transport', 'dentist', 'family discounts'],
+    audio: {
+      intro: '/audio/ege/task2/variant01/intro.mp3',
+      questionCues: [
+        '/audio/ege/task2/variant01/q1.mp3',
+        '/audio/ege/task2/variant01/q2.mp3',
+        '/audio/ege/task2/variant01/q3.mp3',
+        '/audio/ege/task2/variant01/q4.mp3',
+      ],
+    },
   },
   task3: {
     promptText: `Task 3. You are going to give an interview. You have to answer five questions.
@@ -95,6 +115,17 @@ Questions:
 ${TASK3_INTERVIEW_QUESTIONS.map((question, index) => `${index + 1}) ${question}`).join('\n')}`,
     interviewerIntro: TASK3_INTERVIEW_INTRO,
     interviewQuestions: TASK3_INTERVIEW_QUESTIONS,
+    audio: {
+      intro: '/audio/ege/task3/variant01/intro.mp3',
+      questionCues: [
+        '/audio/ege/task3/variant01/q1.mp3',
+        '/audio/ege/task3/variant01/q2.mp3',
+        '/audio/ege/task3/variant01/q3.mp3',
+        '/audio/ege/task3/variant01/q4.mp3',
+        '/audio/ege/task3/variant01/q5.mp3',
+      ],
+      end: '/audio/ege/common/interview_end.mp3',
+    },
   },
   task4: {
     promptText: `Task 4. Imagine that you and your friend are doing a school project “Ideal weekend”. You have found two photos to illustrate it but for technical reasons you cannot send them now. Leave a voice message to your friend explaining your choice of the photos and sharing some ideas about the project.
@@ -121,6 +152,10 @@ In 2.5 minutes be ready to:
 You will speak for not more than 3 minutes: 12–15 sentences. You have to talk continuously.`,
     imageUrls: [TASK4_IMAGE_1, TASK4_IMAGE_2],
     imageCaptions: ['Photo 1', 'Photo 2'],
+    audio: {
+      intro: '/audio/ege/task4/variant01/intro.mp3',
+      startCue: '/audio/ege/common/start_speaking.mp3',
+    },
   },
 };
 
@@ -198,6 +233,26 @@ async function playBeep() {
 
   await delay(220);
   await audioContext.close();
+}
+
+function playAudioFile(src: string) {
+  return new Promise<boolean>(resolve => {
+    const audio = new Audio(src);
+    let resolved = false;
+
+    const finish = (ok: boolean) => {
+      if (!resolved) {
+        resolved = true;
+        resolve(ok);
+      }
+    };
+
+    audio.preload = 'auto';
+    audio.onended = () => finish(true);
+    audio.onerror = () => finish(false);
+
+    audio.play().catch(() => finish(false));
+  });
 }
 
 function speakText(text: string) {
@@ -300,15 +355,19 @@ export default function ExamPage() {
   const prepSeconds = task?.prepSeconds ?? 0;
   const recordingSegments = task?.recordingSegments ?? [];
   const recordDuration = recordingSegments.reduce((sum, segment) => sum + segment.seconds, 0);
+  const isTask2 = taskId === 'task2';
   const isTask3 = taskId === 'task3';
+  const isSegmentedAudioTask = isTask2 || isTask3;
 
   const [phase, setPhase] = useState<Phase>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
   const [taskCreditCost, setTaskCreditCost] = useState(DEFAULT_TASK_CREDIT_COST);
   const [currencyLabel, setCurrencyLabel] = useState(DEFAULT_CURRENCY_LABEL);
-  const [currentInterviewQuestionIndex, setCurrentInterviewQuestionIndex] = useState(0);
-  const [fallbackInterviewQuestionText, setFallbackInterviewQuestionText] = useState<string | null>(null);
+  const [currentAudioPromptIndex, setCurrentAudioPromptIndex] = useState(0);
+  const [fallbackPromptText, setFallbackPromptText] = useState<string | null>(null);
+  const [activeAudioTitle, setActiveAudioTitle] = useState('Звучит аудио');
+  const [activeAudioDescription, setActiveAudioDescription] = useState('Слушайте аудио. После сигнала начнётся запись ответа.');
 
   const startRecordingPhaseRef = useRef<(() => Promise<void>) | null>(null);
   const recordTimerCompleteRef = useRef<(() => Promise<void>) | null>(null);
@@ -341,6 +400,42 @@ export default function ExamPage() {
   } = useTimer(recordDuration, () => {
     void recordTimerCompleteRef.current?.();
   });
+
+  async function playPromptAudio({
+    src,
+    fallbackText,
+    title,
+    description,
+    showFallbackText = false,
+    fallbackDelayMs = 2500,
+  }: {
+    src?: string;
+    fallbackText?: string;
+    title: string;
+    description: string;
+    showFallbackText?: boolean;
+    fallbackDelayMs?: number;
+  }) {
+    setActiveAudioTitle(title);
+    setActiveAudioDescription(description);
+    setFallbackPromptText(null);
+    setPhase('listening');
+
+    if (src) {
+      const playedStaticAudio = await playAudioFile(src);
+      if (playedStaticAudio) return true;
+    }
+
+    if (fallbackText) {
+      const playedBrowserTts = await speakText(fallbackText);
+      if (playedBrowserTts) return false;
+
+      if (showFallbackText) setFallbackPromptText(fallbackText);
+      await delay(fallbackDelayMs);
+    }
+
+    return false;
+  }
 
   async function submitAudio(blob: Blob) {
     if (!taskId || !question) return;
@@ -390,7 +485,7 @@ export default function ExamPage() {
     await submitAudio(blob);
   }
 
-  async function beginTask3Answer() {
+  async function beginSegmentedAnswer(seconds: number) {
     const resumed = resumeRecording();
 
     if (!resumed) {
@@ -400,45 +495,69 @@ export default function ExamPage() {
     }
 
     setPhase('recording');
-    startRecordTimer(40);
+    startRecordTimer(seconds);
+  }
+
+  async function playTask2Cue(index: number) {
+    if (!question?.task2Prompts) return;
+
+    const pointText = question.task2Prompts[index];
+    const fallbackText = `Question ${index + 1}. Ask about ${pointText}.`;
+    setCurrentAudioPromptIndex(index);
+    pauseRecording();
+
+    await playPromptAudio({
+      src: question.audio?.questionCues?.[index],
+      fallbackText,
+      title: `Question ${index + 1} / ${question.task2Prompts.length}`,
+      description: 'Слушайте пункт, о котором нужно задать прямой вопрос. После сигнала начнётся запись на 20 секунд.',
+      fallbackDelayMs: 1800,
+    });
+
+    await playBeep();
+    await beginSegmentedAnswer(20);
   }
 
   async function playTask3Question(index: number) {
     if (!question?.interviewQuestions) return;
 
     const questionText = question.interviewQuestions[index];
-    setCurrentInterviewQuestionIndex(index);
-    setFallbackInterviewQuestionText(null);
-    setPhase('interviewer');
+    setCurrentAudioPromptIndex(index);
     pauseRecording();
 
-    await playBeep();
-
-    if (index === 0 && question.interviewerIntro) {
-      const introPlayed = await speakText(question.interviewerIntro);
-      if (!introPlayed) await delay(1500);
-    }
-
-    const played = await speakText(`Question ${index + 1}. ${questionText}`);
-
-    if (!played) {
-      setFallbackInterviewQuestionText(questionText);
-      await delay(6000);
-    }
+    await playPromptAudio({
+      src: question.audio?.questionCues?.[index],
+      fallbackText: `Question ${index + 1}. ${questionText}`,
+      title: `Question ${index + 1} / ${question.interviewQuestions.length}`,
+      description: 'Слушайте вопрос интервьюера. После сигнала начнётся запись ответа на 40 секунд.',
+      showFallbackText: true,
+      fallbackDelayMs: 6000,
+    });
 
     await playBeep();
-    await beginTask3Answer();
+    await beginSegmentedAnswer(40);
   }
 
-  async function finishTask3Interview() {
+  async function finishSegmentedRecording() {
     stopRecordTimer();
     pauseRecording();
+
+    if (isTask3 && question?.audio?.end) {
+      await playPromptAudio({
+        src: question.audio.end,
+        fallbackText: 'Thank you very much for your interview.',
+        title: 'Интервью завершено',
+        description: 'Слушайте завершающую фразу. После этого ответ будет отправлен на проверку.',
+        fallbackDelayMs: 1800,
+      });
+    }
+
     setPhase('submitting');
 
     const blob = await stopRecording();
 
     if (!blob || blob.size === 0) {
-      setSubmitError('Запись интервью не получилась. Попробуйте ещё раз.');
+      setSubmitError('Запись не получилась. Попробуйте ещё раз.');
       setPhase('idle');
       resetRecordTimer(recordDuration);
       return;
@@ -447,37 +566,40 @@ export default function ExamPage() {
     await submitAudio(blob);
   }
 
-  async function completeTask3Answer() {
+  async function completeSegmentedAnswer() {
     stopRecordTimer();
     pauseRecording();
 
-    const nextIndex = currentInterviewQuestionIndex + 1;
-    const questionCount = question?.interviewQuestions?.length ?? 0;
+    const nextIndex = currentAudioPromptIndex + 1;
+    const questionCount = isTask2
+      ? question?.task2Prompts?.length ?? 0
+      : question?.interviewQuestions?.length ?? 0;
 
     if (nextIndex < questionCount) {
-      await playTask3Question(nextIndex);
+      if (isTask2) await playTask2Cue(nextIndex);
+      else await playTask3Question(nextIndex);
       return;
     }
 
-    await finishTask3Interview();
+    await finishSegmentedRecording();
   }
 
   async function handleRecordTimerComplete() {
-    if (isTask3 && phase === 'recording') {
-      await completeTask3Answer();
+    if (isSegmentedAudioTask && phase === 'recording') {
+      await completeSegmentedAnswer();
       return;
     }
 
     await finishRecording();
   }
 
-  async function startTask3InterviewFlow() {
-    if (!question?.interviewQuestions?.length) return;
+  async function startSegmentedAudioFlow() {
+    if (!question || (!question.task2Prompts?.length && !question.interviewQuestions?.length)) return;
 
     setSubmitError(null);
-    setCurrentInterviewQuestionIndex(0);
-    setFallbackInterviewQuestionText(null);
-    resetRecordTimer(40);
+    setCurrentAudioPromptIndex(0);
+    setFallbackPromptText(null);
+    resetRecordTimer(isTask2 ? 20 : 40);
     setPhase('starting');
 
     const started = await startRecording();
@@ -488,20 +610,34 @@ export default function ExamPage() {
     }
 
     pauseRecording();
-    await playTask3Question(0);
+
+    if (isTask2) await playTask2Cue(0);
+    else await playTask3Question(0);
   }
 
   async function startRecordingPhase() {
     if (!task || !question || recordDuration <= 0) return;
 
-    if (isTask3) {
-      await startTask3InterviewFlow();
+    if (isSegmentedAudioTask) {
+      await startSegmentedAudioFlow();
       return;
     }
 
     setSubmitError(null);
     resetRecordTimer(recordDuration);
     setPhase('starting');
+
+    if (question.audio?.startCue) {
+      await playPromptAudio({
+        src: question.audio.startCue,
+        fallbackText: taskId === 'task1' ? 'Now start reading, please.' : 'Now start speaking, please.',
+        title: taskId === 'task1' ? 'Начинайте чтение' : 'Начинайте ответ',
+        description: 'После сигнала начнётся запись ответа.',
+        fallbackDelayMs: 1200,
+      });
+    }
+
+    await playBeep();
 
     const started = await startRecording();
 
@@ -518,6 +654,12 @@ export default function ExamPage() {
     startRecordingPhaseRef.current = startRecordingPhase;
     recordTimerCompleteRef.current = handleRecordTimerComplete;
   });
+
+  useEffect(() => {
+    return () => {
+      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -573,7 +715,20 @@ export default function ExamPage() {
     if (!task || !question) return;
 
     resetPrepTimer(prepSeconds);
-    resetRecordTimer(isTask3 ? 40 : recordDuration);
+    resetRecordTimer(isTask2 ? 20 : isTask3 ? 40 : recordDuration);
+    setSubmitError(null);
+
+    // Play the task instruction immediately after the user's click and before the prep timer.
+    // This is closer to the exam flow and avoids browser autoplay restrictions after async mic checks.
+    if (question.audio?.intro) {
+      await playPromptAudio({
+        src: question.audio.intro,
+        fallbackText: question.promptText.split('\n\n')[0],
+        title: 'Инструкция задания',
+        description: 'Слушайте инструкцию. После неё начнётся подготовка или запись.',
+        fallbackDelayMs: 2500,
+      });
+    }
 
     const microphoneReady = await checkMicrophone();
     if (!microphoneReady) return;
@@ -629,10 +784,10 @@ export default function ExamPage() {
   }
 
   const secondsElapsed = phase === 'recording' ? recordDuration - recordSecondsLeft : 0;
-  const currentSegment = isTask3
+  const currentSegment = isSegmentedAudioTask
     ? {
-        index: currentInterviewQuestionIndex,
-        segment: recordingSegments[currentInterviewQuestionIndex] ?? recordingSegments[0],
+        index: currentAudioPromptIndex,
+        segment: recordingSegments[currentAudioPromptIndex] ?? recordingSegments[0],
         secondsLeft: recordSecondsLeft,
       }
     : getCurrentSegment(recordingSegments, secondsElapsed);
@@ -681,26 +836,23 @@ export default function ExamPage() {
           </>
         )}
 
-        {phase === 'interviewer' && (
+        {phase === 'listening' && (
           <div className="flex flex-col items-center gap-4 text-center">
             <div className="animate-pulse rounded-full h-12 w-12 bg-blue-100 flex items-center justify-center text-2xl" aria-hidden="true">
               🎧
             </div>
             <div>
               <p className="text-sm font-medium text-gray-500 uppercase tracking-wide">
-                Интервьюер задаёт вопрос
+                {activeAudioTitle}
               </p>
-              <p className="text-3xl font-bold text-gray-950 mt-1">
-                Question {currentInterviewQuestionIndex + 1} / {question.interviewQuestions?.length ?? 5}
+              <p className="text-sm text-gray-500 max-w-md mt-2">
+                {activeAudioDescription}
               </p>
             </div>
-            <p className="text-sm text-gray-500 max-w-md">
-              Слушайте вопрос. После звукового сигнала начнётся запись ответа на 40 секунд.
-            </p>
-            {fallbackInterviewQuestionText && (
+            {fallbackPromptText && (
               <div className="rounded-lg border border-yellow-200 bg-yellow-50 p-4 text-left text-sm text-yellow-900 max-w-xl">
-                <p className="font-semibold mb-1">Не удалось надёжно проиграть голос интервьюера. Текст вопроса показан как fallback:</p>
-                <p>{fallbackInterviewQuestionText}</p>
+                <p className="font-semibold mb-1">Не удалось надёжно проиграть аудио. Текст показан как fallback:</p>
+                <p>{fallbackPromptText}</p>
               </div>
             )}
           </div>
@@ -745,7 +897,7 @@ export default function ExamPage() {
               </div>
             )}
 
-            {!isTask3 && (
+            {!isSegmentedAudioTask && (
               <p className="text-xs text-gray-500 text-center">
                 Общая запись: {formatSeconds(recordSecondsLeft)} осталось. Паузы и перезапуска во время ответа нет.
               </p>
