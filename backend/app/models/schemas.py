@@ -36,6 +36,14 @@ class GradeResult(BaseModel):
     max_total: int
     summary: str
 
+
+# Billing
+class BillingPublicInfo(BaseModel):
+    task_credit_cost: dict[str, int]
+    free_registered_credits: int
+    full_exam_credit_cost: int
+    currency_label: str = "кредиты"
+
 # Submissions
 class SubmissionResponse(BaseModel):
     submission_id: str

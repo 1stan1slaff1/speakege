@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { TASK_CONFIG, TaskType, RecordingSegment } from '@/config/tasks';
+import { DEFAULT_CURRENCY_LABEL, DEFAULT_TASK_CREDIT_COST, BillingPublicInfo } from '@/config/billing';
 import { useTimer } from '@/hooks/useTimer';
 import { useRecorder } from '@/hooks/useRecorder';
 import Timer from '@/components/exam/Timer';
@@ -304,6 +305,8 @@ export default function ExamPage() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
+  const [taskCreditCost, setTaskCreditCost] = useState(DEFAULT_TASK_CREDIT_COST);
+  const [currencyLabel, setCurrencyLabel] = useState(DEFAULT_CURRENCY_LABEL);
   const [currentInterviewQuestionIndex, setCurrentInterviewQuestionIndex] = useState(0);
   const [fallbackInterviewQuestionText, setFallbackInterviewQuestionText] = useState<string | null>(null);
 
@@ -517,8 +520,31 @@ export default function ExamPage() {
   });
 
   useEffect(() => {
+    let cancelled = false;
+
+    async function loadBillingInfo() {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
+        const response = await fetch(`${apiUrl}/billing/public`);
+        if (!response.ok) return;
+
+        const data = await response.json() as BillingPublicInfo;
+        if (cancelled) return;
+
+        setTaskCreditCost({
+          ...DEFAULT_TASK_CREDIT_COST,
+          ...data.task_credit_cost,
+        });
+        setCurrencyLabel(data.currency_label || DEFAULT_CURRENCY_LABEL);
+      } catch (caughtError) {
+        console.warn('Could not load billing info, using defaults', caughtError);
+      }
+    }
+
+    void loadBillingInfo();
+
     return () => {
-      if ('speechSynthesis' in window) window.speechSynthesis.cancel();
+      cancelled = true;
     };
   }, []);
 
@@ -619,6 +645,7 @@ export default function ExamPage() {
   const task2CurrentPrompt = taskId === 'task2' && currentSegment
     ? question.task2Prompts?.[currentSegment.index]
     : null;
+  const currentTaskCreditCost = taskCreditCost[taskId];
 
   return (
     <div className="max-w-3xl mx-auto p-6 min-h-screen bg-gray-50">
@@ -630,6 +657,11 @@ export default function ExamPage() {
         imageUrls={question.imageUrls}
         imageCaptions={question.imageCaptions}
       />
+
+      <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
+        <span className="font-semibold">Стоимость AI-проверки:</span>{' '}
+        {currentTaskCreditCost} {currencyLabel}. Сейчас демо-проверка доступна без списания; после запуска аккаунтов стоимость можно будет менять в backend config.
+      </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-8 flex flex-col items-center gap-6">
         {phase === 'preparing' && (

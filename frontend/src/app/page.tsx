@@ -1,4 +1,5 @@
 import Link from 'next/link';
+import { DEFAULT_FREE_REGISTERED_CREDITS, DEFAULT_TASK_CREDIT_COST } from '@/config/billing';
 import { TASK_CONFIG, TaskType } from '@/config/tasks';
 
 const TASK_ORDER: TaskType[] = ['task1', 'task2', 'task3', 'task4'];
@@ -13,7 +14,7 @@ const TASK_SUMMARIES: Record<TaskType, string> = {
 const FUTURE_BENEFITS = [
   'больше вариантов по каждому типу задания',
   'история попыток и прогресс по критериям',
-  'дополнительные задания пакетами после бесплатного лимита',
+  'покупка дополнительных кредитов для AI-проверок',
 ];
 
 export default function Home() {
@@ -50,8 +51,9 @@ export default function Home() {
           <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
             <h2 className="text-lg font-bold text-gray-950">Что будет после регистрации</h2>
             <p className="mt-2 text-sm leading-6 text-gray-600">
-              Регистрация пока в разработке. План: дать новым пользователям бесплатный набор заданий, сохранить историю и открыть доступ к дополнительным вариантам.
+              Регистрация пока в разработке. План: дать новым пользователям стартовый баланс кредитов, сохранить историю и открыть доступ к дополнительным вариантам.
             </p>
+            <p className="mt-4 rounded-lg bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">Стартовый баланс: {DEFAULT_FREE_REGISTERED_CREDITS} кредитов</p>
             <ul className="mt-5 space-y-3">
               {FUTURE_BENEFITS.map((benefit) => (
                 <li key={benefit} className="flex gap-3 text-sm text-gray-700">
@@ -88,6 +90,9 @@ export default function Home() {
                 </div>
                 <h3 className="font-bold text-gray-950 group-hover:text-blue-700">{task.title}</h3>
                 <p className="mt-3 text-sm leading-6 text-gray-600">{TASK_SUMMARIES[taskType]}</p>
+                <p className="mt-4 inline-flex rounded-full bg-gray-100 px-3 py-1 text-xs font-semibold text-gray-700">
+                  После запуска: {DEFAULT_TASK_CREDIT_COST[taskType]} кредитов за проверку
+                </p>
                 <p className="mt-4 text-sm font-semibold text-blue-600">Начать →</p>
               </Link>
             );

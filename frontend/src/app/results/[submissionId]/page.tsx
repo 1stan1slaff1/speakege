@@ -3,6 +3,7 @@
 import Link from 'next/link';
 import { useSearchParams } from 'next/navigation';
 import { Suspense } from 'react';
+import { DEFAULT_FREE_REGISTERED_CREDITS } from '@/config/billing';
 import { TASK_CONFIG, TaskType } from '@/config/tasks';
 
 interface CriterionScore {
@@ -104,7 +105,7 @@ function ResultsContent() {
           <div>
             <h2 className="font-semibold text-blue-950">Хотите больше заданий?</h2>
             <p className="mt-2 text-sm leading-6 text-blue-800">
-              Это фиксированное демо-задание. Зарегистрируйтесь, чтобы позже получить доступ к большему числу вариантов, истории попыток и дополнительным заданиям.
+              Это фиксированное демо-задание. После регистрации планируется стартовый баланс {DEFAULT_FREE_REGISTERED_CREDITS} кредитов, больше вариантов, история попыток и покупка дополнительных AI-проверок.
             </p>
           </div>
           <div className="flex shrink-0 gap-2">
