@@ -8,6 +8,7 @@ from app.services.transcription import TranscriptionService
 from app.services.grading import GradingService
 from app.services.pronunciation import PronunciationService
 from app.models.schemas import SubmissionResponse
+from app.questions import get_question_by_id
 from providers.transcription.groq_provider import GroqTranscriptionProvider
 from providers.grading.openai_provider import OpenAIGradingProvider
 
@@ -15,6 +16,7 @@ logger = logging.getLogger(__name__)
 router = APIRouter()
 
 MAX_AUDIO_BYTES = 16 * 1024 * 1024
+VALID_TASK_TYPES = {"task1", "task2", "task3", "task4"}
 ALLOWED_AUDIO_CONTENT_TYPES = {
     "audio/webm",
     "audio/ogg",
@@ -77,14 +79,27 @@ def normalize_audio_content_type(audio: UploadFile) -> str:
     return inferred_content_type
 
 
+def resolve_task_and_prompt(task_type: str, question_id: str, prompt_text: str) -> tuple[str, str]:
+    if question_id:
+        question = get_question_by_id(question_id)
+        if not question:
+            raise HTTPException(status_code=404, detail="Question not found.")
+        return question.task_type, (question.grading_prompt_text or question.prompt_text)[:8000]
+
+    if task_type not in VALID_TASK_TYPES:
+        raise HTTPException(status_code=400, detail="Invalid task type.")
+
+    return task_type, prompt_text[:8000]
+
+
 @router.post("/evaluate", response_model=SubmissionResponse)
 async def evaluate(
     audio: UploadFile = File(...),
-    task_type: str = Form(...),
-    prompt_text: str = Form(default="")
+    task_type: str = Form(default=""),
+    prompt_text: str = Form(default=""),
+    question_id: str = Form(default=""),
 ):
-    if task_type not in ["task1", "task2", "task3", "task4"]:
-        raise HTTPException(status_code=400, detail="Invalid task type.")
+    resolved_task_type, resolved_prompt_text = resolve_task_and_prompt(task_type, question_id, prompt_text)
 
     content_type = normalize_audio_content_type(audio)
 
@@ -117,12 +132,12 @@ async def evaluate(
             detail="Внутренняя ошибка при транскрибации. Подробности смотрите в терминале backend.",
         ) from exc
 
-    context = {"prompt_text": prompt_text[:8000]}
+    context = {"prompt_text": resolved_prompt_text}
 
     try:
         grade_result = await grading.grade(
             transcript=transcript,
-            task_type=task_type,
+            task_type=resolved_task_type,
             context=context
         )
     except httpx.HTTPStatusError as exc:
@@ -146,7 +161,7 @@ async def evaluate(
 
     return SubmissionResponse(
         submission_id=str(uuid.uuid4()),
-        task_type=task_type,
+        task_type=resolved_task_type,
         transcript=transcript,
         grade=grade_result
     )

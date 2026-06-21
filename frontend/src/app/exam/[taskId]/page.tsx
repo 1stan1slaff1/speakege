@@ -23,6 +23,8 @@ interface TaskAudioConfig {
 }
 
 interface DemoQuestion {
+  id?: string;
+  taskType?: TaskType;
   promptText: string;
   gradingPromptText?: string;
   imageUrl?: string;
@@ -32,6 +34,50 @@ interface DemoQuestion {
   interviewerIntro?: string;
   interviewQuestions?: readonly string[];
   audio?: TaskAudioConfig;
+}
+
+interface BackendQuestionAudio {
+  intro?: string | null;
+  start_cue?: string | null;
+  question_cues?: string[];
+  end?: string | null;
+}
+
+interface BackendQuestion {
+  id: string;
+  task_type: TaskType;
+  prompt_text: string;
+  grading_prompt_text?: string | null;
+  image_url?: string | null;
+  image_urls?: string[];
+  image_captions?: string[];
+  task2_prompts?: string[];
+  interviewer_intro?: string | null;
+  interview_questions?: string[];
+  audio?: BackendQuestionAudio | null;
+}
+
+function mapBackendQuestion(question: BackendQuestion): DemoQuestion {
+  return {
+    id: question.id,
+    taskType: question.task_type,
+    promptText: question.prompt_text,
+    gradingPromptText: question.grading_prompt_text ?? undefined,
+    imageUrl: question.image_url ?? undefined,
+    imageUrls: question.image_urls ?? [],
+    imageCaptions: question.image_captions ?? [],
+    task2Prompts: question.task2_prompts ?? [],
+    interviewerIntro: question.interviewer_intro ?? undefined,
+    interviewQuestions: question.interview_questions ?? [],
+    audio: question.audio
+      ? {
+          intro: question.audio.intro ?? undefined,
+          startCue: question.audio.start_cue ?? undefined,
+          questionCues: question.audio.question_cues ?? [],
+          end: question.audio.end ?? undefined,
+        }
+      : undefined,
+  };
 }
 
 function makeSvgDataUri(title: string, subtitle: string, background: string, accent: string) {
@@ -351,7 +397,7 @@ export default function ExamPage() {
 
   const taskId = getTaskIdFromParams(params.taskId);
   const task = taskId ? TASK_CONFIG[taskId] : null;
-  const question = taskId ? DEMO_QUESTIONS[taskId] : null;
+  const fallbackQuestion = taskId ? DEMO_QUESTIONS[taskId] : null;
   const prepSeconds = task?.prepSeconds ?? 0;
   const recordingSegments = task?.recordingSegments ?? [];
   const recordDuration = recordingSegments.reduce((sum, segment) => sum + segment.seconds, 0);
@@ -362,12 +408,17 @@ export default function ExamPage() {
   const [phase, setPhase] = useState<Phase>('idle');
   const [submitError, setSubmitError] = useState<string | null>(null);
   const [selectedAudioFile, setSelectedAudioFile] = useState<File | null>(null);
+  const [loadedQuestion, setLoadedQuestion] = useState<DemoQuestion | null>(null);
+  const [questionLoadError, setQuestionLoadError] = useState<string | null>(null);
+  const [isQuestionLoading, setIsQuestionLoading] = useState(false);
   const [taskCreditCost, setTaskCreditCost] = useState(DEFAULT_TASK_CREDIT_COST);
   const [currencyLabel, setCurrencyLabel] = useState(DEFAULT_CURRENCY_LABEL);
   const [currentAudioPromptIndex, setCurrentAudioPromptIndex] = useState(0);
   const [fallbackPromptText, setFallbackPromptText] = useState<string | null>(null);
   const [activeAudioTitle, setActiveAudioTitle] = useState('Звучит аудио');
   const [activeAudioDescription, setActiveAudioDescription] = useState('Слушайте аудио. После сигнала начнётся запись ответа.');
+
+  const question = loadedQuestion ?? fallbackQuestion;
 
   const startRecordingPhaseRef = useRef<(() => Promise<void>) | null>(null);
   const recordTimerCompleteRef = useRef<(() => Promise<void>) | null>(null);
@@ -446,6 +497,7 @@ export default function ExamPage() {
       const formData = new FormData();
       formData.append('audio', blob, getAudioFilename(blob));
       formData.append('task_type', taskId);
+      if (question.id) formData.append('question_id', question.id);
       formData.append('prompt_text', question.gradingPromptText ?? question.promptText);
 
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
@@ -664,6 +716,45 @@ export default function ExamPage() {
   useEffect(() => {
     let cancelled = false;
 
+    async function loadDemoQuestion() {
+      if (!taskId) return;
+
+      setIsQuestionLoading(true);
+      setQuestionLoadError(null);
+
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
+        const response = await fetch(`${apiUrl}/questions/demo/${taskId}`);
+
+        if (!response.ok) {
+          throw new Error(`Backend вернул ошибку ${response.status}`);
+        }
+
+        const data = await response.json() as BackendQuestion;
+        if (cancelled) return;
+
+        setLoadedQuestion(mapBackendQuestion(data));
+      } catch (caughtError) {
+        console.warn('Could not load demo question from backend, using frontend fallback', caughtError);
+        if (!cancelled) {
+          setLoadedQuestion(null);
+          setQuestionLoadError('Не удалось загрузить задание с backend. Используется локальная демо-версия.');
+        }
+      } finally {
+        if (!cancelled) setIsQuestionLoading(false);
+      }
+    }
+
+    void loadDemoQuestion();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [taskId]);
+
+  useEffect(() => {
+    let cancelled = false;
+
     async function loadBillingInfo() {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
@@ -775,10 +866,28 @@ export default function ExamPage() {
     await submitAudio(selectedAudioFile);
   }
 
-  if (!task || !question || !taskId) {
+  if (!task || !taskId) {
     return (
       <div className="max-w-3xl mx-auto p-6">
         <p className="text-red-500">Неверный тип задания.</p>
+      </div>
+    );
+  }
+
+  if (isQuestionLoading && !question) {
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">
+          Загружаем задание...
+        </div>
+      </div>
+    );
+  }
+
+  if (!question) {
+    return (
+      <div className="max-w-3xl mx-auto p-6">
+        <p className="text-red-500">Не удалось загрузить задание.</p>
       </div>
     );
   }
@@ -812,6 +921,12 @@ export default function ExamPage() {
         imageUrls={question.imageUrls}
         imageCaptions={question.imageCaptions}
       />
+
+      {questionLoadError && (
+        <div className="mb-6 rounded-lg border border-yellow-200 bg-yellow-50 px-4 py-3 text-sm text-yellow-900">
+          {questionLoadError}
+        </div>
+      )}
 
       <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
         <span className="font-semibold">Стоимость AI-проверки:</span>{' '}

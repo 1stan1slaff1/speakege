@@ -1,5 +1,4 @@
-from pydantic import BaseModel
-from typing import Any
+from pydantic import BaseModel, Field
 
 # Auth
 class UserRegister(BaseModel):
@@ -15,12 +14,25 @@ class TokenResponse(BaseModel):
     token_type: str = "bearer"
 
 # Questions
+class QuestionAudio(BaseModel):
+    intro: str | None = None
+    start_cue: str | None = None
+    question_cues: list[str] = Field(default_factory=list)
+    end: str | None = None
+
 class Question(BaseModel):
     id: str
     task_type: str  # "task1" | "task2" | "task3" | "task4"
     prompt_text: str
+    grading_prompt_text: str | None = None
     image_url: str | None = None
+    image_urls: list[str] = Field(default_factory=list)
+    image_captions: list[str] = Field(default_factory=list)
     reference_text: str | None = None  # Task 1 only — the text to read aloud
+    task2_prompts: list[str] = Field(default_factory=list)
+    interviewer_intro: str | None = None
+    interview_questions: list[str] = Field(default_factory=list)
+    audio: QuestionAudio | None = None
     prep_seconds: int
     record_seconds: int
 
@@ -35,7 +47,6 @@ class GradeResult(BaseModel):
     total: int
     max_total: int
     summary: str
-
 
 # Billing
 class BillingPublicInfo(BaseModel):
