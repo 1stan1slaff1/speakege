@@ -9,6 +9,7 @@ from app.services.grading import GradingService
 from app.services.pronunciation import PronunciationService
 from app.models.schemas import SubmissionResponse
 from app.questions import get_question_by_id
+from app.submissions import save_submission
 from providers.transcription.groq_provider import GroqTranscriptionProvider
 from providers.grading.openai_provider import OpenAIGradingProvider
 
@@ -159,9 +160,11 @@ async def evaluate(
             detail="Внутренняя ошибка при проверке ответа. Подробности смотрите в терминале backend.",
         ) from exc
 
-    return SubmissionResponse(
+    submission = SubmissionResponse(
         submission_id=str(uuid.uuid4()),
         task_type=resolved_task_type,
         transcript=transcript,
         grade=grade_result
     )
+    save_submission(submission)
+    return submission

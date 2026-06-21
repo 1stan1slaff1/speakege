@@ -1,8 +1,8 @@
 'use client';
 
 import Link from 'next/link';
-import { useSearchParams } from 'next/navigation';
-import { Suspense } from 'react';
+import { useParams, useSearchParams } from 'next/navigation';
+import { Suspense, useEffect, useState } from 'react';
 import { DEFAULT_FREE_REGISTERED_CREDITS } from '@/config/billing';
 import { TASK_CONFIG, TaskType } from '@/config/tasks';
 
@@ -59,24 +59,91 @@ function getRetryTask(taskType: string | undefined): TaskType {
   return taskType && taskType in TASK_CONFIG ? (taskType as TaskType) : 'task2';
 }
 
-function ResultsContent() {
-  const searchParams = useSearchParams();
-  const raw = searchParams.get('data');
+function getSubmissionId(param: string | string[] | undefined) {
+  if (Array.isArray(param)) return param[0];
+  return param;
+}
 
-  if (!raw) {
+function ResultsContent() {
+  const params = useParams();
+  const searchParams = useSearchParams();
+  const submissionId = getSubmissionId(params.submissionId);
+  const legacyRawData = searchParams.get('data');
+  const initialLegacyData = legacyRawData ? parseSubmissionData(legacyRawData) : null;
+
+  const [data, setData] = useState<SubmissionData | null>(initialLegacyData);
+  const [isLoading, setIsLoading] = useState(!legacyRawData && Boolean(submissionId));
+  const [error, setError] = useState<string | null>(
+    legacyRawData && !initialLegacyData
+      ? 'Не удалось прочитать данные результата из URL.'
+      : !legacyRawData && !submissionId
+        ? 'ID результата не найден.'
+        : null,
+  );
+
+  useEffect(() => {
+    if (legacyRawData) return;
+
+    if (!submissionId) return;
+
+    let cancelled = false;
+
+    async function loadSubmission() {
+      setIsLoading(true);
+      setError(null);
+
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
+        const response = await fetch(`${apiUrl}/submissions/${submissionId}`);
+
+        if (!response.ok) {
+          if (response.status === 404) {
+            throw new Error('Результат не найден. Если backend был перезапущен, временный результат мог исчезнуть.');
+          }
+          throw new Error(`Backend вернул ошибку ${response.status}.`);
+        }
+
+        const result = await response.json() as SubmissionData;
+        if (!cancelled) setData(result);
+      } catch (caughtError) {
+        console.error(caughtError);
+        if (!cancelled) {
+          setError(caughtError instanceof Error ? caughtError.message : 'Не удалось загрузить результат.');
+        }
+      } finally {
+        if (!cancelled) setIsLoading(false);
+      }
+    }
+
+    void loadSubmission();
+
+    return () => {
+      cancelled = true;
+    };
+  }, [legacyRawData, submissionId]);
+
+  if (isLoading) {
     return (
       <div className="max-w-3xl mx-auto p-6">
-        <p className="text-red-500">Данные не найдены.</p>
+        <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">
+          Загружаем результат...
+        </div>
       </div>
     );
   }
 
-  const data = parseSubmissionData(raw);
-
-  if (!data) {
+  if (error || !data) {
     return (
       <div className="max-w-3xl mx-auto p-6">
-        <p className="text-red-500">Не удалось прочитать данные результата.</p>
+        <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-red-700">
+          <h1 className="font-semibold">Данные результата не найдены</h1>
+          <p className="mt-2 text-sm leading-6">{error ?? 'Не удалось загрузить данные результата.'}</p>
+          <div className="mt-5">
+            <Link href="/" className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-red-700 ring-1 ring-red-200 hover:bg-red-50">
+              На главную
+            </Link>
+          </div>
+        </div>
       </div>
     );
   }

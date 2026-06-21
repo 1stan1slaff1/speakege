@@ -512,7 +512,7 @@ export default function ExamPage() {
       }
 
       const data = await response.json();
-      router.push(`/results/${data.submission_id}?data=${encodeURIComponent(JSON.stringify(data))}`);
+      router.push(`/results/${data.submission_id}`);
     } catch (caughtError) {
       console.error(caughtError);
       setSubmitError(getSubmitErrorMessage(caughtError));
