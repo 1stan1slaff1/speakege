@@ -3,13 +3,16 @@ import uuid
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
+from sqlalchemy.orm import Session
+from app.billing import get_task_credit_cost
+from app.database import get_db
 from app.services.transcription import TranscriptionService
 from app.services.grading import GradingService
 from app.services.pronunciation import PronunciationService
 from app.models.schemas import SubmissionResponse
 from app.questions import get_question_by_id
-from app.submissions import save_submission
+from app.submissions import create_completed_attempt
 from providers.transcription.groq_provider import GroqTranscriptionProvider
 from providers.grading.openai_provider import OpenAIGradingProvider
 
@@ -99,8 +102,12 @@ async def evaluate(
     task_type: str = Form(default=""),
     prompt_text: str = Form(default=""),
     question_id: str = Form(default=""),
+    source: str = Form(default="recorded"),
+    db: Session = Depends(get_db),
 ):
     resolved_task_type, resolved_prompt_text = resolve_task_and_prompt(task_type, question_id, prompt_text)
+    credit_cost = get_task_credit_cost(resolved_task_type)
+    normalized_source = source if source in {"recorded", "uploaded"} else "recorded"
 
     content_type = normalize_audio_content_type(audio)
 
@@ -166,5 +173,13 @@ async def evaluate(
         transcript=transcript,
         grade=grade_result
     )
-    save_submission(submission)
+    create_completed_attempt(
+        db,
+        submission=submission,
+        question_id=question_id or None,
+        source=normalized_source,
+        audio_mime_type=content_type,
+        audio_size_bytes=len(audio_bytes),
+        credit_cost=credit_cost,
+    )
     return submission

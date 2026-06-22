@@ -497,6 +497,7 @@ export default function ExamPage() {
       const formData = new FormData();
       formData.append('audio', blob, getAudioFilename(blob));
       formData.append('task_type', taskId);
+      formData.append('source', blob instanceof File ? 'uploaded' : 'recorded');
       if (question.id) formData.append('question_id', question.id);
       formData.append('prompt_text', question.gradingPromptText ?? question.promptText);
 
