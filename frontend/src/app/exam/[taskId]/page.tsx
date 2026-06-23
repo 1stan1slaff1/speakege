@@ -505,6 +505,7 @@ export default function ExamPage() {
       const response = await fetch(`${apiUrl}/evaluate`, {
         method: 'POST',
         body: formData,
+        credentials: 'include',
       });
 
       if (!response.ok) {
@@ -725,7 +726,9 @@ export default function ExamPage() {
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
-        const response = await fetch(`${apiUrl}/questions/demo/${taskId}`);
+        const response = await fetch(`${apiUrl}/questions/demo/${taskId}`, {
+          credentials: 'include',
+        });
 
         if (!response.ok) {
           throw new Error(`Backend вернул ошибку ${response.status}`);
@@ -759,7 +762,9 @@ export default function ExamPage() {
     async function loadBillingInfo() {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
-        const response = await fetch(`${apiUrl}/billing/public`);
+        const response = await fetch(`${apiUrl}/billing/public`, {
+          credentials: 'include',
+        });
         if (!response.ok) return;
 
         const data = await response.json() as BillingPublicInfo;

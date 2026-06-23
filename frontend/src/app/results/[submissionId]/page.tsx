@@ -94,7 +94,9 @@ function ResultsContent() {
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
-        const response = await fetch(`${apiUrl}/submissions/${submissionId}`);
+        const response = await fetch(`${apiUrl}/submissions/${submissionId}`, {
+          credentials: 'include',
+        });
 
         if (!response.ok) {
           if (response.status === 404) {

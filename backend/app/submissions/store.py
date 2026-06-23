@@ -26,6 +26,7 @@ def create_completed_attempt(
     *,
     submission: SubmissionResponse,
     question_id: str | None,
+    guest_id: str | None,
     source: str,
     audio_mime_type: str,
     audio_size_bytes: int,
@@ -35,6 +36,7 @@ def create_completed_attempt(
     attempt = Attempt(
         id=submission.submission_id,
         question_id=question_id or None,
+        guest_id=guest_id or None,
         task_type=submission.task_type,
         status="completed",
         source=source,

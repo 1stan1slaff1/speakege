@@ -3,7 +3,7 @@ import uuid
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends
+from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Request, Response
 from sqlalchemy.orm import Session
 from app.billing import get_task_credit_cost
 from app.database import get_db
@@ -18,6 +18,9 @@ from providers.grading.openai_provider import OpenAIGradingProvider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
+
+GUEST_ID_COOKIE_NAME = "guest_id"
+GUEST_ID_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
 
 MAX_AUDIO_BYTES = 16 * 1024 * 1024
 VALID_TASK_TYPES = {"task1", "task2", "task3", "task4"}
@@ -59,6 +62,24 @@ def provider_status_message(provider_name: str, status_code: int) -> str:
     return f"{provider_name}: сервис вернул HTTP {status_code}. Проверьте backend-логи."
 
 
+def get_or_create_guest_id(request: Request, response: Response) -> str:
+    guest_id = request.cookies.get(GUEST_ID_COOKIE_NAME)
+    if guest_id:
+        return guest_id
+
+    guest_id = str(uuid.uuid4())
+    response.set_cookie(
+        key=GUEST_ID_COOKIE_NAME,
+        value=guest_id,
+        max_age=GUEST_ID_MAX_AGE_SECONDS,
+        httponly=True,
+        samesite="lax",
+        secure=False,  # Set to True in production when HTTPS is enforced.
+        path="/",
+    )
+    return guest_id
+
+
 def normalize_audio_content_type(audio: UploadFile) -> str:
     raw_content_type = (audio.content_type or "").split(";")[0].strip().lower()
 
@@ -98,6 +119,8 @@ def resolve_task_and_prompt(task_type: str, question_id: str, prompt_text: str) 
 
 @router.post("/evaluate", response_model=SubmissionResponse)
 async def evaluate(
+    request: Request,
+    response: Response,
     audio: UploadFile = File(...),
     task_type: str = Form(default=""),
     prompt_text: str = Form(default=""),
@@ -108,6 +131,7 @@ async def evaluate(
     resolved_task_type, resolved_prompt_text = resolve_task_and_prompt(task_type, question_id, prompt_text)
     credit_cost = get_task_credit_cost(resolved_task_type)
     normalized_source = source if source in {"recorded", "uploaded"} else "recorded"
+    guest_id = get_or_create_guest_id(request, response)
 
     content_type = normalize_audio_content_type(audio)
 
@@ -177,6 +201,7 @@ async def evaluate(
         db,
         submission=submission,
         question_id=question_id or None,
+        guest_id=guest_id,
         source=normalized_source,
         audio_mime_type=content_type,
         audio_size_bytes=len(audio_bytes),
