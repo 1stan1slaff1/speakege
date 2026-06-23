@@ -1,5 +1,6 @@
 from datetime import datetime, timezone
 
+from sqlalchemy import func, select, update
 from sqlalchemy.orm import Session
 
 from app.models.schemas import GradeResult, SubmissionResponse
@@ -26,6 +27,7 @@ def create_completed_attempt(
     *,
     submission: SubmissionResponse,
     question_id: str | None,
+    user_id: str | None,
     guest_id: str | None,
     source: str,
     audio_mime_type: str,
@@ -36,6 +38,7 @@ def create_completed_attempt(
     attempt = Attempt(
         id=submission.submission_id,
         question_id=question_id or None,
+        user_id=user_id or None,
         guest_id=guest_id or None,
         task_type=submission.task_type,
         status="completed",
@@ -56,6 +59,28 @@ def create_completed_attempt(
     db.commit()
     db.refresh(attempt)
     return attempt
+
+
+def attach_guest_attempts_to_user(db: Session, *, guest_id: str, user_id: str) -> int:
+    result = db.execute(
+        update(Attempt)
+        .where(Attempt.guest_id == guest_id, Attempt.user_id.is_(None))
+        .values(user_id=user_id)
+    )
+    db.commit()
+    return result.rowcount or 0
+
+
+def count_completed_guest_attempts_for_task(db: Session, *, guest_id: str, task_type: str) -> int:
+    return db.scalar(
+        select(func.count())
+        .select_from(Attempt)
+        .where(
+            Attempt.guest_id == guest_id,
+            Attempt.task_type == task_type,
+            Attempt.status == "completed",
+        )
+    ) or 0
 
 
 def get_submission(db: Session, submission_id: str) -> SubmissionResponse | None:

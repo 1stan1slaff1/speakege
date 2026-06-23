@@ -4,6 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { TASK_CONFIG, TaskType, RecordingSegment } from '@/config/tasks';
 import { DEFAULT_CURRENCY_LABEL, DEFAULT_TASK_CREDIT_COST, BillingPublicInfo } from '@/config/billing';
+import { getAuthHeaders } from '@/config/auth';
 import { useTimer } from '@/hooks/useTimer';
 import { useRecorder } from '@/hooks/useRecorder';
 import Timer from '@/components/exam/Timer';
@@ -505,6 +506,7 @@ export default function ExamPage() {
       const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
       const response = await fetch(`${apiUrl}/evaluate`, {
         method: 'POST',
+        headers: getAuthHeaders(),
         body: formData,
         credentials: 'include',
       });

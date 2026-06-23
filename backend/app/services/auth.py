@@ -1,16 +1,24 @@
 from datetime import datetime, timedelta
-from passlib.context import CryptContext
-from jose import jwt, JWTError
+
 from fastapi import HTTPException, status
+from jose import JWTError, jwt
+from passlib.context import CryptContext
+
 from app.config import settings
 
-pwd_context = CryptContext(schemes=["bcrypt"], deprecated="auto")
+# bcrypt has a 72-byte password input limit. bcrypt_sha256 pre-hashes the
+# password before bcrypt, so long passphrases do not crash registration.
+# Keep plain bcrypt as deprecated so old hashes can still be verified if any exist.
+pwd_context = CryptContext(schemes=["bcrypt_sha256", "bcrypt"], deprecated="bcrypt")
+
 
 def hash_password(password: str) -> str:
     return pwd_context.hash(password)
 
+
 def verify_password(plain: str, hashed: str) -> bool:
     return pwd_context.verify(plain, hashed)
+
 
 def create_token(user_id: str) -> str:
     expire = datetime.utcnow() + timedelta(days=30)
@@ -19,6 +27,7 @@ def create_token(user_id: str) -> str:
         settings.JWT_SECRET,
         algorithm="HS256"
     )
+
 
 def decode_token(token: str) -> str:
     try:

@@ -4,6 +4,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { DEFAULT_FREE_REGISTERED_CREDITS } from '@/config/billing';
+import { getAuthHeaders } from '@/config/auth';
 import { TASK_CONFIG, TaskType } from '@/config/tasks';
 
 interface CriterionScore {
@@ -95,6 +96,7 @@ function ResultsContent() {
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
         const response = await fetch(`${apiUrl}/submissions/${submissionId}`, {
+          headers: getAuthHeaders(),
           credentials: 'include',
         });
 

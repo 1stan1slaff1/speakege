@@ -5,22 +5,24 @@ from pathlib import Path
 import httpx
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Request, Response
 from sqlalchemy.orm import Session
+from app.api.routes.auth import get_optional_current_user
 from app.billing import get_task_credit_cost
 from app.database import get_db
+from app.services.guest import get_or_create_guest_id
 from app.services.transcription import TranscriptionService
 from app.services.grading import GradingService
 from app.services.pronunciation import PronunciationService
 from app.models.schemas import SubmissionResponse
+from app.models.tables import User
 from app.questions import get_question_by_id
-from app.submissions import create_completed_attempt
+from app.submissions import count_completed_guest_attempts_for_task, create_completed_attempt
 from providers.transcription.groq_provider import GroqTranscriptionProvider
 from providers.grading.openai_provider import OpenAIGradingProvider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
 
-GUEST_ID_COOKIE_NAME = "guest_id"
-GUEST_ID_MAX_AGE_SECONDS = 60 * 60 * 24 * 365
+GUEST_COMPLETED_ATTEMPTS_PER_TASK_LIMIT = 1
 
 MAX_AUDIO_BYTES = 16 * 1024 * 1024
 VALID_TASK_TYPES = {"task1", "task2", "task3", "task4"}
@@ -60,24 +62,6 @@ def provider_status_message(provider_name: str, status_code: int) -> str:
     if 500 <= status_code <= 599:
         return f"{provider_name}: временная ошибка сервиса HTTP {status_code}. Попробуйте позже."
     return f"{provider_name}: сервис вернул HTTP {status_code}. Проверьте backend-логи."
-
-
-def get_or_create_guest_id(request: Request, response: Response) -> str:
-    guest_id = request.cookies.get(GUEST_ID_COOKIE_NAME)
-    if guest_id:
-        return guest_id
-
-    guest_id = str(uuid.uuid4())
-    response.set_cookie(
-        key=GUEST_ID_COOKIE_NAME,
-        value=guest_id,
-        max_age=GUEST_ID_MAX_AGE_SECONDS,
-        httponly=True,
-        samesite="lax",
-        secure=False,  # Set to True in production when HTTPS is enforced.
-        path="/",
-    )
-    return guest_id
 
 
 def normalize_audio_content_type(audio: UploadFile) -> str:
@@ -127,11 +111,24 @@ async def evaluate(
     question_id: str = Form(default=""),
     source: str = Form(default="recorded"),
     db: Session = Depends(get_db),
+    current_user: User | None = Depends(get_optional_current_user),
 ):
     resolved_task_type, resolved_prompt_text = resolve_task_and_prompt(task_type, question_id, prompt_text)
     credit_cost = get_task_credit_cost(resolved_task_type)
     normalized_source = source if source in {"recorded", "uploaded"} else "recorded"
-    guest_id = get_or_create_guest_id(request, response)
+    guest_id = None if current_user else get_or_create_guest_id(request, response)
+
+    if not current_user and guest_id:
+        completed_attempts_for_task = count_completed_guest_attempts_for_task(
+            db,
+            guest_id=guest_id,
+            task_type=resolved_task_type,
+        )
+        if completed_attempts_for_task >= GUEST_COMPLETED_ATTEMPTS_PER_TASK_LIMIT:
+            raise HTTPException(
+                status_code=403,
+                detail="Вы уже использовали бесплатную AI-проверку для этого типа задания. Зарегистрируйтесь, чтобы получить стартовый баланс кредитов и доступ к большему числу проверок.",
+            )
 
     content_type = normalize_audio_content_type(audio)
 
@@ -201,6 +198,7 @@ async def evaluate(
         db,
         submission=submission,
         question_id=question_id or None,
+        user_id=current_user.id if current_user else None,
         guest_id=guest_id,
         source=normalized_source,
         audio_mime_type=content_type,
