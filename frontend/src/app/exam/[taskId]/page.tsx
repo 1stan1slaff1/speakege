@@ -422,6 +422,7 @@ export default function ExamPage() {
 
   const startRecordingPhaseRef = useRef<(() => Promise<void>) | null>(null);
   const recordTimerCompleteRef = useRef<(() => Promise<void>) | null>(null);
+  const errorMessageRef = useRef<HTMLParagraphElement | null>(null);
 
   const {
     isRecording,
@@ -755,6 +756,20 @@ export default function ExamPage() {
       cancelled = true;
     };
   }, [taskId]);
+
+  useEffect(() => {
+    if (!recorderError && !submitError) return;
+
+    const timeoutId = window.setTimeout(() => {
+      errorMessageRef.current?.scrollIntoView({
+        behavior: 'smooth',
+        block: 'center',
+      });
+      errorMessageRef.current?.focus({ preventScroll: true });
+    }, 50);
+
+    return () => window.clearTimeout(timeoutId);
+  }, [recorderError, submitError]);
 
   useEffect(() => {
     let cancelled = false;
@@ -1095,7 +1110,12 @@ export default function ExamPage() {
         )}
 
         {(recorderError || submitError) && (
-          <p className="text-red-500 text-sm text-center">
+          <p
+            ref={errorMessageRef}
+            role="alert"
+            tabIndex={-1}
+            className="text-red-500 text-sm text-center outline-none"
+          >
             {recorderError || submitError}
           </p>
         )}
