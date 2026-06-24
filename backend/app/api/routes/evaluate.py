@@ -6,7 +6,7 @@ import httpx
 from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Request, Response
 from sqlalchemy.orm import Session
 from app.api.routes.auth import get_optional_current_user
-from app.billing import get_task_credit_cost
+from app.billing import add_credits, get_credit_balance, get_task_credit_cost
 from app.database import get_db
 from app.services.guest import get_or_create_guest_id
 from app.services.transcription import TranscriptionService
@@ -62,6 +62,26 @@ def provider_status_message(provider_name: str, status_code: int) -> str:
     if 500 <= status_code <= 599:
         return f"{provider_name}: временная ошибка сервиса HTTP {status_code}. Попробуйте позже."
     return f"{provider_name}: сервис вернул HTTP {status_code}. Проверьте backend-логи."
+
+
+def refund_credits_if_needed(
+    db: Session,
+    *,
+    user: User | None,
+    credits_deducted: bool,
+    credit_cost: int,
+    attempt_id: str,
+) -> None:
+    if not user or not credits_deducted or credit_cost <= 0:
+        return
+
+    add_credits(
+        db,
+        user_id=user.id,
+        amount=credit_cost,
+        reason="refund_failed_evaluation",
+        attempt_id=attempt_id,
+    )
 
 
 def normalize_audio_content_type(audio: UploadFile) -> str:
@@ -140,21 +160,44 @@ async def evaluate(
     if len(audio_bytes) > MAX_AUDIO_BYTES:
         raise HTTPException(status_code=400, detail="Audio file too large. Maximum size is 16MB.")
 
+    submission_id = str(uuid.uuid4())
+    credits_deducted = False
+
+    if current_user:
+        credit_balance = get_credit_balance(db, user_id=current_user.id)
+        if credit_balance < credit_cost:
+            raise HTTPException(
+                status_code=402,
+                detail=f"Недостаточно кредитов для AI-проверки. Нужно: {credit_cost}, доступно: {credit_balance}.",
+            )
+
+        add_credits(
+            db,
+            user_id=current_user.id,
+            amount=-credit_cost,
+            reason="task_evaluation",
+            attempt_id=submission_id,
+        )
+        credits_deducted = True
+
     try:
         transcript = await transcription.transcribe(audio_bytes, content_type)
     except httpx.HTTPStatusError as exc:
+        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
         logger.exception("Groq transcription returned an HTTP error: %s", exc.response.text)
         raise HTTPException(
             status_code=502,
             detail=provider_status_message("Groq transcription", exc.response.status_code),
         ) from exc
     except httpx.RequestError as exc:
+        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
         logger.exception("Could not connect to Groq transcription")
         raise HTTPException(
             status_code=502,
             detail="Не удалось подключиться к Groq для транскрибации. Если backend запущен локально в РФ, проверьте системный VPN/proxy или доступность api.groq.com.",
         ) from exc
     except Exception as exc:
+        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
         logger.exception("Unexpected transcription error")
         raise HTTPException(
             status_code=500,
@@ -170,18 +213,21 @@ async def evaluate(
             context=context
         )
     except httpx.HTTPStatusError as exc:
+        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
         logger.exception("OpenAI grading returned an HTTP error: %s", exc.response.text)
         raise HTTPException(
             status_code=502,
             detail=provider_status_message("OpenAI grading", exc.response.status_code),
         ) from exc
     except httpx.RequestError as exc:
+        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
         logger.exception("Could not connect to OpenAI grading")
         raise HTTPException(
             status_code=502,
             detail="Не удалось подключиться к OpenAI для проверки ответа. Если backend запущен локально в РФ, проверьте системный VPN/proxy или доступность api.openai.com.",
         ) from exc
     except Exception as exc:
+        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
         logger.exception("Unexpected grading error")
         raise HTTPException(
             status_code=500,
@@ -189,7 +235,7 @@ async def evaluate(
         ) from exc
 
     submission = SubmissionResponse(
-        submission_id=str(uuid.uuid4()),
+        submission_id=submission_id,
         task_type=resolved_task_type,
         transcript=transcript,
         grade=grade_result

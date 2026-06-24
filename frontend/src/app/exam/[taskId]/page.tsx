@@ -517,6 +517,7 @@ export default function ExamPage() {
       }
 
       const data = await response.json();
+      window.dispatchEvent(new Event('speakege-auth-changed'));
       router.push(`/results/${data.submission_id}`);
     } catch (caughtError) {
       console.error(caughtError);
