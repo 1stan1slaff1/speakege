@@ -3,6 +3,7 @@ from app.submissions.store import (
     count_completed_guest_attempts_for_task,
     create_completed_attempt,
     get_submission,
+    list_user_attempts,
 )
 
 __all__ = [
@@ -10,4 +11,5 @@ __all__ = [
     "count_completed_guest_attempts_for_task",
     "create_completed_attempt",
     "get_submission",
+    "list_user_attempts",
 ]

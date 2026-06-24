@@ -75,12 +75,18 @@ export default function SiteHeader() {
           {user ? (
             <>
               <Link
-                href="/history"
+                href="/account"
                 className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-950"
+              >
+                Кабинет
+              </Link>
+              <Link
+                href="/history"
+                className="hidden rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-950 sm:inline"
               >
                 История
               </Link>
-              <span className="hidden rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 sm:inline">
+              <span className="hidden rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 md:inline">
                 {user.credit_balance} кредитов
               </span>
               <span className="hidden max-w-[220px] truncate text-sm font-medium text-gray-700 sm:inline">

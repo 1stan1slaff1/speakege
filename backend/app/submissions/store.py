@@ -83,6 +83,17 @@ def count_completed_guest_attempts_for_task(db: Session, *, guest_id: str, task_
     ) or 0
 
 
+def list_user_attempts(db: Session, *, user_id: str, limit: int = 50) -> list[Attempt]:
+    return list(
+        db.scalars(
+            select(Attempt)
+            .where(Attempt.user_id == user_id)
+            .order_by(Attempt.created_at.desc())
+            .limit(limit)
+        )
+    )
+
+
 def get_submission(db: Session, submission_id: str) -> SubmissionResponse | None:
     attempt = db.get(Attempt, submission_id)
     if not attempt or attempt.status != "completed" or not attempt.grade_json:
