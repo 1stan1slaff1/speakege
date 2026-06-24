@@ -2,6 +2,7 @@ from fastapi import APIRouter, Depends, Header, HTTPException, Request, status
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
+from app.billing import FREE_REGISTERED_CREDITS, add_credits, get_credit_balance
 from app.services.guest import GUEST_ID_COOKIE_NAME
 from app.database import get_db
 from app.models.schemas import TokenResponse, UserLogin, UserRegister, UserResponse
@@ -23,8 +24,13 @@ def validate_email(email: str) -> str:
     return normalized
 
 
-def user_to_response(user: User) -> UserResponse:
-    return UserResponse(id=user.id, email=user.email, created_at=user.created_at)
+def user_to_response(user: User, db: Session) -> UserResponse:
+    return UserResponse(
+        id=user.id,
+        email=user.email,
+        created_at=user.created_at,
+        credit_balance=get_credit_balance(db, user_id=user.id),
+    )
 
 
 def get_bearer_token(authorization: str | None) -> str:
@@ -74,6 +80,13 @@ async def register(payload: UserRegister, request: Request, db: Session = Depend
     db.commit()
     db.refresh(user)
 
+    add_credits(
+        db,
+        user_id=user.id,
+        amount=FREE_REGISTERED_CREDITS,
+        reason="registration_bonus",
+    )
+
     guest_id = request.cookies.get(GUEST_ID_COOKIE_NAME)
     if guest_id:
         attach_guest_attempts_to_user(db, guest_id=guest_id, user_id=user.id)
@@ -96,5 +109,8 @@ async def login(payload: UserLogin, db: Session = Depends(get_db)):
 
 
 @router.get("/user", response_model=UserResponse)
-async def get_user(current_user: User = Depends(get_current_user)):
-    return user_to_response(current_user)
+async def get_user(
+    current_user: User = Depends(get_current_user),
+    db: Session = Depends(get_db),
+):
+    return user_to_response(current_user, db)

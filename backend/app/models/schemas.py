@@ -19,6 +19,7 @@ class UserResponse(BaseModel):
     id: str
     email: str
     created_at: datetime
+    credit_balance: int = 0
 
 # Questions
 class QuestionAudio(BaseModel):
@@ -61,6 +62,19 @@ class BillingPublicInfo(BaseModel):
     free_registered_credits: int
     full_exam_credit_cost: int
     currency_label: str = "кредиты"
+
+# Attempts
+class AttemptHistoryItem(BaseModel):
+    id: str
+    question_id: str | None = None
+    task_type: str
+    status: str
+    source: str
+    total_score: int | None = None
+    max_score: int | None = None
+    credit_cost: int
+    created_at: datetime
+    completed_at: datetime | None = None
 
 # Submissions
 class SubmissionResponse(BaseModel):

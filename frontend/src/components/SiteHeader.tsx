@@ -74,6 +74,15 @@ export default function SiteHeader() {
         <nav className="flex items-center gap-2" aria-label="Навигация пользователя">
           {user ? (
             <>
+              <Link
+                href="/history"
+                className="rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-950"
+              >
+                История
+              </Link>
+              <span className="hidden rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 sm:inline">
+                {user.credit_balance} кредитов
+              </span>
               <span className="hidden max-w-[220px] truncate text-sm font-medium text-gray-700 sm:inline">
                 {user.email}
               </span>

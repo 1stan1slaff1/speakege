@@ -4,6 +4,7 @@ export interface AuthUser {
   id: string;
   email: string;
   created_at: string;
+  credit_balance: number;
 }
 
 export interface TokenResponse {

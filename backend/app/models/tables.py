@@ -49,3 +49,19 @@ class Attempt(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
     started_at = Column(DateTime(timezone=True), nullable=True)
     completed_at = Column(DateTime(timezone=True), nullable=True)
+
+
+class CreditLedger(Base):
+    __tablename__ = "credit_ledger"
+
+    id = Column(String(36), primary_key=True, default=lambda: str(uuid.uuid4()))
+    user_id = Column(String(36), nullable=False, index=True)
+
+    # Positive amount = credit grant, negative amount = credit deduction.
+    amount = Column(Integer, nullable=False)
+    reason = Column(String(64), nullable=False, index=True)
+
+    attempt_id = Column(String(36), nullable=True, index=True)
+    payment_id = Column(String(128), nullable=True, index=True)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
