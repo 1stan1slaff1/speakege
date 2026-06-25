@@ -370,6 +370,50 @@ for row in rows:
 PY
 ```
 
+
+---
+
+## Questions table and seed commands
+
+Demo questions are seeded from `backend/app/questions/demo_bank.py` into the DB-backed `questions` table.
+
+Run after migrations:
+
+```bash
+cd ~/projects/speakege/backend
+source .venv/bin/activate
+
+python scripts/seed_demo_questions.py
+```
+
+Check seeded questions:
+
+```bash
+cd ~/projects/speakege/backend
+source .venv/bin/activate
+
+python - <<'PYCODE'
+from sqlalchemy import text
+from app.database import engine
+
+with engine.connect() as conn:
+    rows = conn.execute(text("""
+        SELECT id, task_type, is_demo, is_active, position
+        FROM questions
+        ORDER BY position, task_type
+    """)).fetchall()
+
+for row in rows:
+    print(row)
+PYCODE
+```
+
+Test question endpoint:
+
+```bash
+curl http://localhost:8000/api/questions/demo/task2
+```
+
 ---
 
 ## Static audio prompt paths
@@ -422,15 +466,3 @@ Then:
 git add .gitignore
 git commit -m "Remove generated Python files from git"
 ```
-
----
-
-## Current recommended next steps
-
-Possible next steps:
-
-1. Add `/pricing` or `/buy-credits` placeholder page.
-2. Add account-aware CTA on results page.
-3. Add DB-backed `questions` table and seed script.
-4. Add payment scaffold before YooKassa/Robokassa integration.
-5. Add AI proxy config later for RF backend → VLESS/Reality egress.

@@ -3,21 +3,22 @@ import uuid
 from pathlib import Path
 
 import httpx
-from fastapi import APIRouter, UploadFile, File, Form, HTTPException, Depends, Request, Response
+from fastapi import APIRouter, Depends, File, Form, HTTPException, Request, Response, UploadFile
 from sqlalchemy.orm import Session
+
 from app.api.routes.auth import get_optional_current_user
 from app.billing import add_credits, get_credit_balance, get_task_credit_cost
 from app.database import get_db
-from app.services.guest import get_or_create_guest_id
-from app.services.transcription import TranscriptionService
-from app.services.grading import GradingService
-from app.services.pronunciation import PronunciationService
 from app.models.schemas import SubmissionResponse
 from app.models.tables import User
-from app.questions import get_question_by_id
+from app.questions import get_question_by_id, get_question_by_id_from_db
+from app.services.grading import GradingService
+from app.services.guest import get_or_create_guest_id
+from app.services.pronunciation import PronunciationService
+from app.services.transcription import TranscriptionService
 from app.submissions import count_completed_guest_attempts_for_task, create_completed_attempt
-from providers.transcription.groq_provider import GroqTranscriptionProvider
 from providers.grading.openai_provider import OpenAIGradingProvider
+from providers.transcription.groq_provider import GroqTranscriptionProvider
 
 logger = logging.getLogger(__name__)
 router = APIRouter()
@@ -108,9 +109,10 @@ def normalize_audio_content_type(audio: UploadFile) -> str:
     return inferred_content_type
 
 
-def resolve_task_and_prompt(task_type: str, question_id: str, prompt_text: str) -> tuple[str, str]:
+def resolve_task_and_prompt(db: Session, task_type: str, question_id: str, prompt_text: str) -> tuple[str, str]:
     if question_id:
-        question = get_question_by_id(question_id)
+        # Prefer DB-backed questions. Fallback keeps legacy demo ids working before seeding.
+        question = get_question_by_id_from_db(db, question_id) or get_question_by_id(question_id)
         if not question:
             raise HTTPException(status_code=404, detail="Question not found.")
         return question.task_type, (question.grading_prompt_text or question.prompt_text)[:8000]
@@ -133,7 +135,7 @@ async def evaluate(
     db: Session = Depends(get_db),
     current_user: User | None = Depends(get_optional_current_user),
 ):
-    resolved_task_type, resolved_prompt_text = resolve_task_and_prompt(task_type, question_id, prompt_text)
+    resolved_task_type, resolved_prompt_text = resolve_task_and_prompt(db, task_type, question_id, prompt_text)
     credit_cost = get_task_credit_cost(resolved_task_type)
     normalized_source = source if source in {"recorded", "uploaded"} else "recorded"
     guest_id = None if current_user else get_or_create_guest_id(request, response)
@@ -183,21 +185,39 @@ async def evaluate(
     try:
         transcript = await transcription.transcribe(audio_bytes, content_type)
     except httpx.HTTPStatusError as exc:
-        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
+        refund_credits_if_needed(
+            db,
+            user=current_user,
+            credits_deducted=credits_deducted,
+            credit_cost=credit_cost,
+            attempt_id=submission_id,
+        )
         logger.exception("Groq transcription returned an HTTP error: %s", exc.response.text)
         raise HTTPException(
             status_code=502,
             detail=provider_status_message("Groq transcription", exc.response.status_code),
         ) from exc
     except httpx.RequestError as exc:
-        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
+        refund_credits_if_needed(
+            db,
+            user=current_user,
+            credits_deducted=credits_deducted,
+            credit_cost=credit_cost,
+            attempt_id=submission_id,
+        )
         logger.exception("Could not connect to Groq transcription")
         raise HTTPException(
             status_code=502,
             detail="Не удалось подключиться к Groq для транскрибации. Если backend запущен локально в РФ, проверьте системный VPN/proxy или доступность api.groq.com.",
         ) from exc
     except Exception as exc:
-        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
+        refund_credits_if_needed(
+            db,
+            user=current_user,
+            credits_deducted=credits_deducted,
+            credit_cost=credit_cost,
+            attempt_id=submission_id,
+        )
         logger.exception("Unexpected transcription error")
         raise HTTPException(
             status_code=500,
@@ -213,21 +233,39 @@ async def evaluate(
             context=context
         )
     except httpx.HTTPStatusError as exc:
-        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
+        refund_credits_if_needed(
+            db,
+            user=current_user,
+            credits_deducted=credits_deducted,
+            credit_cost=credit_cost,
+            attempt_id=submission_id,
+        )
         logger.exception("OpenAI grading returned an HTTP error: %s", exc.response.text)
         raise HTTPException(
             status_code=502,
             detail=provider_status_message("OpenAI grading", exc.response.status_code),
         ) from exc
     except httpx.RequestError as exc:
-        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
+        refund_credits_if_needed(
+            db,
+            user=current_user,
+            credits_deducted=credits_deducted,
+            credit_cost=credit_cost,
+            attempt_id=submission_id,
+        )
         logger.exception("Could not connect to OpenAI grading")
         raise HTTPException(
             status_code=502,
             detail="Не удалось подключиться к OpenAI для проверки ответа. Если backend запущен локально в РФ, проверьте системный VPN/proxy или доступность api.openai.com.",
         ) from exc
     except Exception as exc:
-        refund_credits_if_needed(db, user=current_user, credits_deducted=credits_deducted, credit_cost=credit_cost, attempt_id=submission_id)
+        refund_credits_if_needed(
+            db,
+            user=current_user,
+            credits_deducted=credits_deducted,
+            credit_cost=credit_cost,
+            attempt_id=submission_id,
+        )
         logger.exception("Unexpected grading error")
         raise HTTPException(
             status_code=500,

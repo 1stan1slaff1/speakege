@@ -15,6 +15,35 @@ class User(Base):
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
 
 
+class QuestionRecord(Base):
+    __tablename__ = "questions"
+
+    id = Column(String(128), primary_key=True)
+    task_type = Column(String(16), nullable=False, index=True)
+
+    prompt_text = Column(Text, nullable=False)
+    grading_prompt_text = Column(Text, nullable=True)
+    image_url = Column(Text, nullable=True)
+    image_urls = Column(JSON, nullable=False, default=list)
+    image_captions = Column(JSON, nullable=False, default=list)
+    reference_text = Column(Text, nullable=True)
+
+    task2_prompts = Column(JSON, nullable=False, default=list)
+    interviewer_intro = Column(Text, nullable=True)
+    interview_questions = Column(JSON, nullable=False, default=list)
+    audio = Column(JSON, nullable=True)
+
+    prep_seconds = Column(Integer, nullable=False)
+    record_seconds = Column(Integer, nullable=False)
+
+    is_demo = Column(Boolean, nullable=False, default=False, index=True)
+    is_curated = Column(Boolean, nullable=False, default=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    position = Column(Integer, nullable=False, default=0)
+
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
 class Attempt(Base):
     __tablename__ = "attempts"
 
