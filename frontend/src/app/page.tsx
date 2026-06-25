@@ -34,10 +34,10 @@ export default function Home() {
             </p>
             <div className="mt-8 flex flex-col gap-3 sm:flex-row">
               <Link
-                href="/exam/task2"
+                href="/practice"
                 className="rounded-lg bg-blue-600 px-6 py-3 text-center font-semibold text-white transition-colors hover:bg-blue-700"
               >
-                Попробовать демо
+                Выбрать задание
               </Link>
               <Link
                 href="/register"

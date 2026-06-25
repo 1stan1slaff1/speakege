@@ -44,6 +44,17 @@ class Question(BaseModel):
     prep_seconds: int
     record_seconds: int
 
+
+class QuestionListItem(BaseModel):
+    id: str
+    task_type: str
+    title: str
+    is_demo: bool
+    is_curated: bool
+    position: int
+    prep_seconds: int
+    record_seconds: int
+
 # Grading
 class CriterionScore(BaseModel):
     score: int

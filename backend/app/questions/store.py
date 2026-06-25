@@ -1,7 +1,7 @@
 from sqlalchemy import select
 from sqlalchemy.orm import Session
 
-from app.models.schemas import Question, QuestionAudio
+from app.models.schemas import Question, QuestionAudio, QuestionListItem
 from app.models.tables import QuestionRecord
 
 
@@ -19,6 +19,23 @@ def question_record_to_schema(record: QuestionRecord) -> Question:
         interviewer_intro=record.interviewer_intro,
         interview_questions=record.interview_questions or [],
         audio=QuestionAudio.model_validate(record.audio) if record.audio else None,
+        prep_seconds=record.prep_seconds,
+        record_seconds=record.record_seconds,
+    )
+
+
+def question_record_to_list_item(record: QuestionRecord) -> QuestionListItem:
+    title = record.prompt_text.splitlines()[0].replace("Task 1. ", "").replace("Task 2. ", "").replace("Task 3. ", "").replace("Task 4. ", "")
+    if len(title) > 90:
+        title = title[:87].rstrip() + "..."
+
+    return QuestionListItem(
+        id=record.id,
+        task_type=record.task_type,
+        title=title,
+        is_demo=record.is_demo,
+        is_curated=record.is_curated,
+        position=record.position,
         prep_seconds=record.prep_seconds,
         record_seconds=record.record_seconds,
     )
@@ -45,6 +62,57 @@ def question_schema_to_record(question: Question, *, is_demo: bool, position: in
         is_active=True,
         position=position,
     )
+
+
+def list_question_items_from_db(
+    db: Session,
+    *,
+    task_type: str | None = None,
+    include_inactive: bool = False,
+    limit: int = 100,
+) -> list[QuestionListItem]:
+    statement = select(QuestionRecord)
+    if task_type:
+        statement = statement.where(QuestionRecord.task_type == task_type)
+    if not include_inactive:
+        statement = statement.where(QuestionRecord.is_active.is_(True))
+
+    statement = statement.order_by(
+        QuestionRecord.task_type.asc(),
+        QuestionRecord.position.asc(),
+        QuestionRecord.created_at.asc(),
+    ).limit(limit)
+
+    return [question_record_to_list_item(record) for record in db.scalars(statement)]
+
+
+def list_questions_from_db(
+    db: Session,
+    *,
+    task_type: str | None = None,
+    include_inactive: bool = False,
+    limit: int = 100,
+) -> list[Question]:
+    statement = select(QuestionRecord)
+    if task_type:
+        statement = statement.where(QuestionRecord.task_type == task_type)
+    if not include_inactive:
+        statement = statement.where(QuestionRecord.is_active.is_(True))
+
+    statement = statement.order_by(
+        QuestionRecord.task_type.asc(),
+        QuestionRecord.position.asc(),
+        QuestionRecord.created_at.asc(),
+    ).limit(limit)
+
+    return [question_record_to_schema(record) for record in db.scalars(statement)]
+
+
+def is_demo_question_in_db(db: Session, question_id: str) -> bool | None:
+    record = db.get(QuestionRecord, question_id)
+    if not record:
+        return None
+    return bool(record.is_demo)
 
 
 def get_question_by_id_from_db(db: Session, question_id: str) -> Question | None:

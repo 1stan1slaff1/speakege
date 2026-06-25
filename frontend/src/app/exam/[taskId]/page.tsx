@@ -1,7 +1,7 @@
 'use client';
 
 import { useState, useEffect, useRef } from 'react';
-import { useParams, useRouter } from 'next/navigation';
+import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { TASK_CONFIG, TaskType, RecordingSegment } from '@/config/tasks';
 import { DEFAULT_CURRENCY_LABEL, DEFAULT_TASK_CREDIT_COST, BillingPublicInfo } from '@/config/billing';
 import { getAuthHeaders } from '@/config/auth';
@@ -395,6 +395,8 @@ function getCurrentSegment(segments: readonly RecordingSegment[], secondsElapsed
 export default function ExamPage() {
   const params = useParams();
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const selectedQuestionId = searchParams.get('questionId');
 
   const taskId = getTaskIdFromParams(params.taskId);
   const task = taskId ? TASK_CONFIG[taskId] : null;
@@ -730,7 +732,10 @@ export default function ExamPage() {
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
-        const response = await fetch(`${apiUrl}/questions/demo/${taskId}`, {
+        const questionUrl = selectedQuestionId
+          ? `${apiUrl}/questions/${encodeURIComponent(selectedQuestionId)}`
+          : `${apiUrl}/questions/demo/${taskId}`;
+        const response = await fetch(questionUrl, {
           credentials: 'include',
         });
 
@@ -758,7 +763,7 @@ export default function ExamPage() {
     return () => {
       cancelled = true;
     };
-  }, [taskId]);
+  }, [taskId, selectedQuestionId]);
 
   useEffect(() => {
     if (!recorderError && !submitError) return;

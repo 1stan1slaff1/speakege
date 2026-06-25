@@ -1,3 +1,5 @@
+# SpeakEGE Dev Commands
+
 ## Project paths used in commands
 
 Most commands below assume the repo is here:
@@ -259,8 +261,6 @@ PY
 
 ## Manual credit grant script
 
-Use this before real payments exist.
-
 Run from `backend/`:
 
 ```bash
@@ -284,24 +284,11 @@ Example:
 python scripts/grant_credits.py student@example.com 40 manual_grant
 ```
 
-The script prints:
-
-```text
-User
-User ID
-Ledger ID
-Reason
-Granted amount
-Balance before -> after
-```
-
-It rejects zero and negative amounts.
-
 ---
 
 ## Evaluate endpoint test
 
-Guest / legacy-style test with `question_id`:
+Guest test with `question_id`:
 
 ```bash
 curl -X POST http://localhost:8000/api/evaluate \
@@ -370,12 +357,9 @@ for row in rows:
 PY
 ```
 
-
 ---
 
 ## Questions table and seed commands
-
-Demo questions are seeded from `backend/app/questions/demo_bank.py` into the DB-backed `questions` table.
 
 Run after migrations:
 
@@ -392,7 +376,7 @@ Check seeded questions:
 cd ~/projects/speakege/backend
 source .venv/bin/activate
 
-python - <<'PYCODE'
+python - <<'PY'
 from sqlalchemy import text
 from app.database import engine
 
@@ -405,13 +389,14 @@ with engine.connect() as conn:
 
 for row in rows:
     print(row)
-PYCODE
+PY
 ```
 
-Test question endpoint:
+Test question endpoints:
 
 ```bash
 curl http://localhost:8000/api/questions/demo/task2
+curl 'http://localhost:8000/api/questions?task_type=task2'
 ```
 
 ---

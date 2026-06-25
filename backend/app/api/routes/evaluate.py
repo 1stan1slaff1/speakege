@@ -11,7 +11,7 @@ from app.billing import add_credits, get_credit_balance, get_task_credit_cost
 from app.database import get_db
 from app.models.schemas import SubmissionResponse
 from app.models.tables import User
-from app.questions import get_question_by_id, get_question_by_id_from_db
+from app.questions import get_question_by_id, get_question_by_id_from_db, is_demo_question_in_db
 from app.services.grading import GradingService
 from app.services.guest import get_or_create_guest_id
 from app.services.pronunciation import PronunciationService
@@ -141,6 +141,15 @@ async def evaluate(
     guest_id = None if current_user else get_or_create_guest_id(request, response)
 
     if not current_user and guest_id:
+        if question_id:
+            db_demo_flag = is_demo_question_in_db(db, question_id)
+            is_demo_question = db_demo_flag if db_demo_flag is not None else question_id.startswith("demo_")
+            if not is_demo_question:
+                raise HTTPException(
+                    status_code=403,
+                    detail="Этот вариант доступен после регистрации. Зарегистрируйтесь, чтобы получить стартовый баланс кредитов и доступ к большему числу заданий.",
+                )
+
         completed_attempts_for_task = count_completed_guest_attempts_for_task(
             db,
             guest_id=guest_id,
