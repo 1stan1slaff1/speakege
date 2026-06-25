@@ -86,6 +86,12 @@ export default function SiteHeader() {
               >
                 История
               </Link>
+              <Link
+                href="/pricing"
+                className="hidden rounded-lg px-4 py-2 text-sm font-semibold text-gray-700 transition-colors hover:bg-gray-100 hover:text-gray-950 lg:inline"
+              >
+                Кредиты
+              </Link>
               <span className="hidden rounded-full bg-blue-50 px-3 py-1 text-sm font-semibold text-blue-700 md:inline">
                 {user.credit_balance} кредитов
               </span>

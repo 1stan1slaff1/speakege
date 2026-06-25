@@ -202,13 +202,12 @@ export default function AccountPage() {
                   </div>
                 ))}
               </div>
-              <button
-                type="button"
-                disabled
-                className="mt-6 w-full cursor-not-allowed rounded-lg bg-gray-300 px-4 py-2.5 font-semibold text-gray-500"
+              <Link
+                href="/pricing"
+                className="mt-6 block w-full rounded-lg bg-blue-600 px-4 py-2.5 text-center font-semibold text-white hover:bg-blue-700"
               >
-                Купить кредиты — скоро
-              </button>
+                Купить кредиты
+              </Link>
             </div>
 
             <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
