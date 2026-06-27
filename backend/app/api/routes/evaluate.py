@@ -9,6 +9,7 @@ from sqlalchemy.orm import Session
 from app.api.routes.auth import get_optional_current_user
 from app.billing import add_credits, get_credit_balance, get_task_credit_cost
 from app.database import get_db
+from app.feedback import list_active_error_topics
 from app.models.schemas import SubmissionResponse
 from app.models.tables import User
 from app.questions import get_question_by_id, get_question_by_id_from_db, is_demo_question_in_db
@@ -234,6 +235,8 @@ async def evaluate(
         ) from exc
 
     context = {"prompt_text": resolved_prompt_text}
+    if resolved_task_type == "task2":
+        context["error_topics"] = [topic.model_dump() for topic in list_active_error_topics(db)]
 
     try:
         grade_result = await grading.grade(

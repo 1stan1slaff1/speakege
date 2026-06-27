@@ -7,10 +7,26 @@ import { DEFAULT_FREE_REGISTERED_CREDITS } from '@/config/billing';
 import { getAuthHeaders } from '@/config/auth';
 import { TASK_CONFIG, TaskType } from '@/config/tasks';
 
+interface FeedbackIssue {
+  topic_id: string;
+  fragment?: string | null;
+  correction?: string | null;
+  explanation_ru: string;
+}
+
 interface CriterionScore {
   score: number;
   max_score: number;
   feedback: string;
+  issues?: FeedbackIssue[];
+}
+
+interface ErrorTopic {
+  id: string;
+  title_ru: string;
+  short_explanation_ru: string;
+  material_title?: string | null;
+  material_url?: string | null;
 }
 
 interface GradeResult {
@@ -81,6 +97,34 @@ function ResultsContent() {
         ? 'ID результата не найден.'
         : null,
   );
+  const [errorTopics, setErrorTopics] = useState<Record<string, ErrorTopic>>({});
+
+  useEffect(() => {
+    let cancelled = false;
+
+    async function loadErrorTopics() {
+      try {
+        const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
+        const response = await fetch(`${apiUrl}/feedback/error-topics`, {
+          credentials: 'include',
+        });
+        if (!response.ok) return;
+
+        const topics = await response.json() as ErrorTopic[];
+        if (cancelled) return;
+
+        setErrorTopics(Object.fromEntries(topics.map((topic) => [topic.id, topic])));
+      } catch (caughtError) {
+        console.warn('Could not load error topics', caughtError);
+      }
+    }
+
+    void loadErrorTopics();
+
+    return () => {
+      cancelled = true;
+    };
+  }, []);
 
   useEffect(() => {
     if (legacyRawData) return;
@@ -220,6 +264,49 @@ function ResultsContent() {
               </span>
             </div>
             <p className="text-gray-600 text-sm leading-relaxed">{criterion.feedback}</p>
+
+            {criterion.issues && criterion.issues.length > 0 && (
+              <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4">
+                <p className="text-sm font-semibold text-amber-900">Что повторить</p>
+                <div className="mt-3 space-y-3">
+                  {criterion.issues.map((issue, index) => {
+                    const topic = errorTopics[issue.topic_id];
+                    return (
+                      <div key={`${issue.topic_id}-${index}`} className="text-sm text-amber-950">
+                        <p className="font-medium">
+                          {topic?.title_ru ?? 'Тема для повторения'}
+                        </p>
+                        <p className="mt-1 text-amber-900">
+                          {topic?.short_explanation_ru ?? issue.explanation_ru}
+                        </p>
+                        {(issue.fragment || issue.correction) && (
+                          <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                            {issue.fragment && (
+                              <p className="rounded bg-white/70 px-3 py-2">
+                                <span className="font-medium">Было: </span>{issue.fragment}
+                              </p>
+                            )}
+                            {issue.correction && (
+                              <p className="rounded bg-white/70 px-3 py-2">
+                                <span className="font-medium">Лучше: </span>{issue.correction}
+                              </p>
+                            )}
+                          </div>
+                        )}
+                        {topic?.material_url && (
+                          <a
+                            href={topic.material_url}
+                            className="mt-2 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800"
+                          >
+                            {topic.material_title ?? 'Материал для повторения'} →
+                          </a>
+                        )}
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
           </div>
         ))}
       </div>
@@ -229,12 +316,18 @@ function ResultsContent() {
         <p className="text-gray-600 text-sm leading-relaxed italic whitespace-pre-wrap">{transcript}</p>
       </div>
 
-      <div className="flex gap-4">
+      <div className="flex flex-wrap gap-4">
         <Link
           href={`/exam/${retryTask}`}
           className="bg-blue-600 hover:bg-blue-700 text-white font-semibold px-6 py-3 rounded-lg transition-colors"
         >
           Попробовать ещё раз
+        </Link>
+        <Link
+          href="/history"
+          className="bg-white hover:bg-blue-50 text-blue-700 ring-1 ring-blue-200 font-semibold px-6 py-3 rounded-lg transition-colors"
+        >
+          История попыток
         </Link>
         <Link
           href="/"

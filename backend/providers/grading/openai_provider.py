@@ -1,9 +1,11 @@
 import json
+
 import httpx
-from app.services.grading import GradingProvider
-from app.models.schemas import GradeResult, CriterionScore
+
 from app.config import settings
-from app.rubrics import get_rubric, get_max_total
+from app.models.schemas import CriterionScore, GradeResult
+from app.rubrics import get_max_total, get_rubric
+from app.services.grading import GradingProvider
 
 TASK_FEEDBACK_GUIDELINES = {
     "task1": """
@@ -51,6 +53,20 @@ Task 4 feedback guidance:
 """,
 }
 
+
+def build_error_topics_prompt(error_topics: list[dict]) -> str:
+    if not error_topics:
+        return ""
+
+    lines = [
+        "Supported learning topics for issue tagging. Use only these topic_id values; do not invent new ones:",
+    ]
+    for topic in error_topics:
+        lines.append(f"- {topic['id']}: {topic['title_ru']}")
+
+    return "\n".join(lines)
+
+
 class OpenAIGradingProvider(GradingProvider):
     API_URL = "https://api.openai.com/v1/chat/completions"
 
@@ -58,6 +74,21 @@ class OpenAIGradingProvider(GradingProvider):
         rubric = get_rubric(task_type)
         official_max_total = get_max_total(task_type)
         feedback_guidelines = TASK_FEEDBACK_GUIDELINES.get(task_type, "")
+        error_topics = context.get("error_topics", []) or []
+        error_topics_prompt = build_error_topics_prompt(error_topics)
+
+        issue_schema_note = """
+For each criterion object, include an "issues" array. If there are no issues, return an empty array.
+Each issue must have this exact shape:
+{
+  "topic_id": "<one supported topic_id>",
+  "fragment": "<student phrase with the problem, or null>",
+  "correction": "<corrected phrase, or null>",
+  "explanation_ru": "<short explanation in Russian>"
+}
+For Task 2, add issues for score-relevant language/content problems when possible.
+Technical topic_id values are internal; do not expose them in the Russian feedback text.
+""" if task_type == "task2" else ""
 
         system_prompt = f"""You are an expert ЕГЭ English examiner.
 Grade the student response strictly according to the official-format rubric below.
@@ -67,13 +98,18 @@ The official maximum total for this task is {official_max_total}.
 
 {feedback_guidelines}
 
+{error_topics_prompt}
+
+{issue_schema_note}
+
 Return ONLY a JSON object in this exact format:
 {{
     "criteria": {{
         "criterion_name": {{
             "score": <int>,
             "max_score": <int>,
-            "feedback": "<specific diagnostic feedback in Russian>"
+            "feedback": "<specific diagnostic feedback in Russian>",
+            "issues": []
         }}
     }},
     "total": <int>,
@@ -120,14 +156,34 @@ Student response transcript:
             response.raise_for_status()
             raw = json.loads(response.json()["choices"][0]["message"]["content"])
 
-        criteria = {
-            key: CriterionScore(
+        allowed_topic_ids = {topic["id"] for topic in error_topics}
+
+        criteria = {}
+        for key, value in raw["criteria"].items():
+            raw_issues = value.get("issues", []) if isinstance(value, dict) else []
+            issues = []
+            if isinstance(raw_issues, list):
+                for issue in raw_issues:
+                    if not isinstance(issue, dict):
+                        continue
+                    topic_id = str(issue.get("topic_id", ""))
+                    if allowed_topic_ids and topic_id not in allowed_topic_ids:
+                        continue
+                    if not topic_id:
+                        continue
+                    issues.append({
+                        "topic_id": topic_id,
+                        "fragment": issue.get("fragment"),
+                        "correction": issue.get("correction"),
+                        "explanation_ru": str(issue.get("explanation_ru", "")),
+                    })
+
+            criteria[key] = CriterionScore(
                 score=max(0, min(int(value["score"]), int(value["max_score"]))),
                 max_score=max(0, int(value["max_score"])),
                 feedback=str(value["feedback"]),
+                issues=issues,
             )
-            for key, value in raw["criteria"].items()
-        }
 
         if task_type == "task4" and criteria.get("content") and criteria["content"].score == 0:
             for key in ("organisation", "language"):

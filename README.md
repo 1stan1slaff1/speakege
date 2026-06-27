@@ -399,6 +399,26 @@ curl http://localhost:8000/api/questions/demo/task2
 curl 'http://localhost:8000/api/questions?task_type=task2'
 ```
 
+
+---
+
+## Feedback error topics seed commands
+
+Run after migrations:
+
+```bash
+cd ~/projects/speakege/backend
+source .venv/bin/activate
+
+python scripts/seed_error_topics.py
+```
+
+Test error topics endpoint:
+
+```bash
+curl http://localhost:8000/api/feedback/error-topics
+```
+
 ---
 
 ## Static audio prompt paths

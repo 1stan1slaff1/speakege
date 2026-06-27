@@ -94,3 +94,15 @@ class CreditLedger(Base):
     payment_id = Column(String(128), nullable=True, index=True)
 
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)
+
+
+class ErrorTopic(Base):
+    __tablename__ = "error_topics"
+
+    id = Column(String(64), primary_key=True)
+    title_ru = Column(String(255), nullable=False)
+    short_explanation_ru = Column(Text, nullable=False)
+    material_title = Column(String(255), nullable=True)
+    material_url = Column(Text, nullable=True)
+    is_active = Column(Boolean, nullable=False, default=True, index=True)
+    created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

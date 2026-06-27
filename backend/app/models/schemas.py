@@ -56,10 +56,24 @@ class QuestionListItem(BaseModel):
     record_seconds: int
 
 # Grading
+class FeedbackIssue(BaseModel):
+    topic_id: str
+    fragment: str | None = None
+    correction: str | None = None
+    explanation_ru: str
+
 class CriterionScore(BaseModel):
     score: int
     max_score: int
     feedback: str
+    issues: list[FeedbackIssue] = Field(default_factory=list)
+
+class ErrorTopicResponse(BaseModel):
+    id: str
+    title_ru: str
+    short_explanation_ru: str
+    material_title: str | None = None
+    material_url: str | None = None
 
 class GradeResult(BaseModel):
     criteria: dict[str, CriterionScore]
