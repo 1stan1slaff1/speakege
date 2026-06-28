@@ -87,8 +87,9 @@ Each issue must have this exact shape:
   "explanation_ru": "<short explanation in Russian>"
 }
 For Task 2, add issues for score-relevant language/content problems when possible.
+For Task 3, add issues when an answer loses a point or has a major weakness: too short, missing part of the question, missing reason, off-topic answer, or serious basic language error.
 Technical topic_id values are internal; do not expose them in the Russian feedback text.
-""" if task_type == "task2" else ""
+""" if task_type in {"task2", "task3"} else ""
 
         system_prompt = f"""You are an expert ЕГЭ English examiner.
 Grade the student response strictly according to the official-format rubric below.

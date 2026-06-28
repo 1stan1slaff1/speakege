@@ -5,6 +5,70 @@ from app.models.schemas import ErrorTopicResponse
 from app.models.tables import ErrorTopic
 
 ERROR_TOPIC_SEED_DATA = [
+
+    {
+        "id": "answer_too_short",
+        "title_ru": "Развёрнутый ответ в 2–3 предложения",
+        "short_explanation_ru": "В задании 3 короткого фрагмента или одного неполного предложения обычно недостаточно: нужен полный ответ на 2–3 содержательные фразы.",
+        "material_title": "Как отвечать развёрнуто в задании 3",
+        "material_url": "/learn/task3-full-answer",
+    },
+    {
+        "id": "missing_second_part",
+        "title_ru": "Ответ на обе части вопроса",
+        "short_explanation_ru": "Если вопрос состоит из двух частей, нужно ответить на обе. Иначе ответ считается неполным.",
+        "material_title": "Двухчастные вопросы в интервью",
+        "material_url": "/learn/task3-two-part-questions",
+    },
+    {
+        "id": "missing_reason",
+        "title_ru": "Обоснование ответа на вопрос why",
+        "short_explanation_ru": "Если в вопросе есть why, в ответе должна быть причина или объяснение.",
+        "material_title": "Как давать reason в устном ответе",
+        "material_url": "/learn/giving-reasons",
+    },
+    {
+        "id": "off_topic_answer",
+        "title_ru": "Ответ точно по вопросу",
+        "short_explanation_ru": "Ответ должен соответствовать конкретному вопросу интервьюера, а не уходить в общий топик.",
+        "material_title": "Как не уходить от темы в задании 3",
+        "material_url": "/learn/task3-relevance",
+    },
+    {
+        "id": "basic_grammar_error",
+        "title_ru": "Базовая грамматика в устном ответе",
+        "short_explanation_ru": "Грубые ошибки базового уровня могут привести к потере балла даже при понятной идее ответа.",
+        "material_title": "Типичные грамматические ошибки в говорении",
+        "material_url": "/learn/basic-speaking-grammar",
+    },
+    {
+        "id": "subject_verb_agreement",
+        "title_ru": "Согласование подлежащего и сказуемого",
+        "short_explanation_ru": "В Present Simple нужно следить за формами вроде I live, he lives, people are, it is.",
+        "material_title": "Subject-verb agreement",
+        "material_url": "/learn/subject-verb-agreement",
+    },
+    {
+        "id": "tense_choice",
+        "title_ru": "Выбор времени глагола",
+        "short_explanation_ru": "В ответе важно выбирать время по смыслу: настоящее для привычек, прошедшее для прошлого опыта, будущее для планов.",
+        "material_title": "Времена в устном ответе ЕГЭ",
+        "material_url": "/learn/speaking-tenses",
+    },
+    {
+        "id": "lexical_choice",
+        "title_ru": "Выбор слов и естественные выражения",
+        "short_explanation_ru": "Неверный выбор слова или неестественное выражение может сделать ответ менее точным или непонятным.",
+        "material_title": "Лексика для устной части",
+        "material_url": "/learn/speaking-vocabulary",
+    },
+    {
+        "id": "unclear_answer",
+        "title_ru": "Понятность ответа",
+        "short_explanation_ru": "Ответ должен быть достаточно ясным: избегайте набора слов, незаконченных фраз и слишком резких переходов.",
+        "material_title": "Как сделать устный ответ понятным",
+        "material_url": "/learn/clear-speaking-answer",
+    },
     {
         "id": "question_word_order",
         "title_ru": "Порядок слов в прямом вопросе",

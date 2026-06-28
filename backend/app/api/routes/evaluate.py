@@ -235,7 +235,7 @@ async def evaluate(
         ) from exc
 
     context = {"prompt_text": resolved_prompt_text}
-    if resolved_task_type == "task2":
+    if resolved_task_type in {"task2", "task3"}:
         context["error_topics"] = [topic.model_dump() for topic in list_active_error_topics(db)]
 
     try:
