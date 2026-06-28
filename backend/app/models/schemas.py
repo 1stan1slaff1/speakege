@@ -74,6 +74,9 @@ class ErrorTopicResponse(BaseModel):
     short_explanation_ru: str
     material_title: str | None = None
     material_url: str | None = None
+    category: str = "language"
+    applies_to_tasks: list[str] = Field(default_factory=list)
+    display_order: int = 1000
 
 class GradeResult(BaseModel):
     criteria: dict[str, CriterionScore]

@@ -235,8 +235,11 @@ async def evaluate(
         ) from exc
 
     context = {"prompt_text": resolved_prompt_text}
-    if resolved_task_type in {"task2", "task3"}:
-        context["error_topics"] = [topic.model_dump() for topic in list_active_error_topics(db)]
+    if resolved_task_type in {"task2", "task3", "task4"}:
+        context["error_topics"] = [
+            topic.model_dump()
+            for topic in list_active_error_topics(db, task_type=resolved_task_type)
+        ]
 
     try:
         grade_result = await grading.grade(

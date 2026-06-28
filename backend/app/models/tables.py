@@ -104,5 +104,8 @@ class ErrorTopic(Base):
     short_explanation_ru = Column(Text, nullable=False)
     material_title = Column(String(255), nullable=True)
     material_url = Column(Text, nullable=True)
+    category = Column(String(32), nullable=False, default="language", index=True)
+    applies_to_tasks = Column(JSON, nullable=False, default=list)
+    display_order = Column(Integer, nullable=False, default=1000)
     is_active = Column(Boolean, nullable=False, default=True, index=True)
     created_at = Column(DateTime(timezone=True), server_default=func.now(), nullable=False)

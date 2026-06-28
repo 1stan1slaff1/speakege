@@ -58,11 +58,23 @@ def build_error_topics_prompt(error_topics: list[dict]) -> str:
     if not error_topics:
         return ""
 
+    category_names = {
+        "content": "Content",
+        "organisation": "Organisation",
+        "language": "Language",
+        "pronunciation": "Pronunciation",
+    }
+    grouped: dict[str, list[dict]] = {}
+    for topic in sorted(error_topics, key=lambda item: (item.get("display_order", 1000), item.get("id", ""))):
+        grouped.setdefault(topic.get("category", "language"), []).append(topic)
+
     lines = [
-        "Supported learning topics for issue tagging. Use only these topic_id values; do not invent new ones:",
+        "Supported learning topics for issue tagging. Use only these topic_id values; do not invent new ones.",
     ]
-    for topic in error_topics:
-        lines.append(f"- {topic['id']}: {topic['title_ru']}")
+    for category, topics in grouped.items():
+        lines.append(f"{category_names.get(category, category.title())} topics:")
+        for topic in topics:
+            lines.append(f"- {topic['id']}: {topic['title_ru']}")
 
     return "\n".join(lines)
 
@@ -88,8 +100,9 @@ Each issue must have this exact shape:
 }
 For Task 2, add issues for score-relevant language/content problems when possible.
 For Task 3, add issues when an answer loses a point or has a major weakness: too short, missing part of the question, missing reason, off-topic answer, or serious basic language error.
+For Task 4, analyse issues in this priority order: content first, organisation second, language third. Always report important content issues when present. Then report organisation issues. Use language issues for major or recurring grammar/vocabulary problems. If content score is 0, focus issues on why the communicative task failed; do not focus on minor language issues.
 Technical topic_id values are internal; do not expose them in the Russian feedback text.
-""" if task_type in {"task2", "task3"} else ""
+""" if task_type in {"task2", "task3", "task4"} else ""
 
         system_prompt = f"""You are an expert ЕГЭ English examiner.
 Grade the student response strictly according to the official-format rubric below.

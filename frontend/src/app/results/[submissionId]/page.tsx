@@ -27,6 +27,8 @@ interface ErrorTopic {
   short_explanation_ru: string;
   material_title?: string | null;
   material_url?: string | null;
+  category: 'content' | 'organisation' | 'language' | 'pronunciation' | string;
+  display_order: number;
 }
 
 interface GradeResult {
@@ -79,6 +81,33 @@ function getRetryTask(taskType: string | undefined): TaskType {
 function getSubmissionId(param: string | string[] | undefined) {
   if (Array.isArray(param)) return param[0];
   return param;
+}
+
+const ISSUE_CATEGORY_LABELS: Record<string, string> = {
+  content: 'Содержание',
+  organisation: 'Организация',
+  language: 'Язык',
+  pronunciation: 'Произношение',
+};
+
+const ISSUE_CATEGORY_ORDER: Record<string, number> = {
+  content: 1,
+  organisation: 2,
+  language: 3,
+  pronunciation: 4,
+};
+
+function groupIssuesByCategory(issues: FeedbackIssue[], topics: Record<string, ErrorTopic>) {
+  const grouped = new Map<string, FeedbackIssue[]>();
+
+  for (const issue of issues) {
+    const category = topics[issue.topic_id]?.category ?? 'language';
+    grouped.set(category, [...(grouped.get(category) ?? []), issue]);
+  }
+
+  return Array.from(grouped.entries()).sort(([a], [b]) => {
+    return (ISSUE_CATEGORY_ORDER[a] ?? 99) - (ISSUE_CATEGORY_ORDER[b] ?? 99);
+  });
 }
 
 function ResultsContent() {
@@ -268,42 +297,51 @@ function ResultsContent() {
             {criterion.issues && criterion.issues.length > 0 && (
               <div className="mt-4 rounded-lg border border-amber-100 bg-amber-50 p-4">
                 <p className="text-sm font-semibold text-amber-900">Что повторить</p>
-                <div className="mt-3 space-y-3">
-                  {criterion.issues.map((issue, index) => {
-                    const topic = errorTopics[issue.topic_id];
-                    return (
-                      <div key={`${issue.topic_id}-${index}`} className="text-sm text-amber-950">
-                        <p className="font-medium">
-                          {topic?.title_ru ?? 'Тема для повторения'}
-                        </p>
-                        <p className="mt-1 text-amber-900">
-                          {topic?.short_explanation_ru ?? issue.explanation_ru}
-                        </p>
-                        {(issue.fragment || issue.correction) && (
-                          <div className="mt-2 grid gap-2 sm:grid-cols-2">
-                            {issue.fragment && (
-                              <p className="rounded bg-white/70 px-3 py-2">
-                                <span className="font-medium">Было: </span>{issue.fragment}
+                <div className="mt-3 space-y-4">
+                  {groupIssuesByCategory(criterion.issues, errorTopics).map(([category, issues]) => (
+                    <div key={category}>
+                      <p className="text-xs font-semibold uppercase tracking-wide text-amber-700">
+                        {ISSUE_CATEGORY_LABELS[category] ?? 'Тема'}
+                      </p>
+                      <div className="mt-2 space-y-3">
+                        {issues.map((issue, index) => {
+                          const topic = errorTopics[issue.topic_id];
+                          return (
+                            <div key={`${issue.topic_id}-${index}`} className="text-sm text-amber-950">
+                              <p className="font-medium">
+                                {topic?.title_ru ?? 'Тема для повторения'}
                               </p>
-                            )}
-                            {issue.correction && (
-                              <p className="rounded bg-white/70 px-3 py-2">
-                                <span className="font-medium">Лучше: </span>{issue.correction}
+                              <p className="mt-1 text-amber-900">
+                                {topic?.short_explanation_ru ?? issue.explanation_ru}
                               </p>
-                            )}
-                          </div>
-                        )}
-                        {topic?.material_url && (
-                          <a
-                            href={topic.material_url}
-                            className="mt-2 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800"
-                          >
-                            {topic.material_title ?? 'Материал для повторения'} →
-                          </a>
-                        )}
+                              {(issue.fragment || issue.correction) && (
+                                <div className="mt-2 grid gap-2 sm:grid-cols-2">
+                                  {issue.fragment && (
+                                    <p className="rounded bg-white/70 px-3 py-2">
+                                      <span className="font-medium">Было: </span>{issue.fragment}
+                                    </p>
+                                  )}
+                                  {issue.correction && (
+                                    <p className="rounded bg-white/70 px-3 py-2">
+                                      <span className="font-medium">Лучше: </span>{issue.correction}
+                                    </p>
+                                  )}
+                                </div>
+                              )}
+                              {topic?.material_url && (
+                                <a
+                                  href={topic.material_url}
+                                  className="mt-2 inline-flex text-sm font-semibold text-blue-700 hover:text-blue-800"
+                                >
+                                  {topic.material_title ?? 'Материал для повторения'} →
+                                </a>
+                              )}
+                            </div>
+                          );
+                        })}
                       </div>
-                    );
-                  })}
+                    </div>
+                  ))}
                 </div>
               </div>
             )}
