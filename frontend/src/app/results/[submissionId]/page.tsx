@@ -46,6 +46,8 @@ interface SubmissionData {
 }
 
 const CRITERION_LABELS: Record<string, string> = {
+  criterion_name: 'Общий разбор задания',
+  overall: 'Общий разбор задания',
   phonetics: 'Фонетическая сторона речи',
   questions: 'Вопросы',
   question_1: 'Вопрос 1',

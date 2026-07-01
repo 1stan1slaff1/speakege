@@ -17,12 +17,15 @@ Task 1 feedback guidance:
 """,
     "task2": """
 Task 2 feedback guidance:
-For each of question_1, question_2, question_3, question_4, feedback must be diagnostic and specific.
-Use 2-4 short Russian sentences per question.
-Do NOT write only "wrong word order" plus a correction if there are other important errors.
+- Return exactly four criteria: question_1, question_2, question_3, question_4.
+- Each question is evaluated independently.
+- Do not collapse the result into one overall criterion, even if all four questions receive 0.
+- For each of question_1, question_2, question_3, question_4, feedback must be diagnostic and specific.
+- Use 2-4 short Russian sentences per question.
+- Do NOT write only "wrong word order" plus a correction if there are other important errors.
 
 For each question, cover these points where relevant:
-1. Content: say whether the required content point is covered (location, public transport, dentist, family discounts, etc.).
+1. Content: say whether the required content point is covered.
 2. Direct-question form: say whether the grammar of a direct question is correct.
 3. Error types: explicitly name all major errors that affect the score: missing auxiliary/linking verb, wrong word order, missing/incorrect article, wrong preposition, wrong lexical choice, content mismatch.
 4. Correction: end with one corrected version.
@@ -32,12 +35,10 @@ Important distinctions:
 - "How I can get to the clinic...?" has wrong direct-question word order. Correct: "How can I get to the clinic...?"
 - "Is there dentist at your clinic?" has correct inversion "Is there", but it is missing the article "a" before the singular countable noun "dentist".
 - "Are there family discounts?" is generally acceptable if the content point is family discounts; "any" is more natural but should not be the only reason for 0.
-
-Preferred feedback style example:
-"Пункт про dentist раскрыт, но вопрос нельзя засчитать из-за грамматической ошибки. Конструкция 'Is there ...?' выбрана правильно, однако перед исчисляемым существительным в единственном числе нужен артикль: 'a dentist'. Правильный вариант: 'Is there a dentist at your clinic?'"
 """,
     "task3": """
 Task 3 feedback guidance:
+- Return exactly five criteria: answer_1, answer_2, answer_3, answer_4, answer_5.
 - For each answer, say whether it answers the exact interviewer question.
 - Mention if the answer is too short: one meaningful sentence or a fragment is not enough for 1 point.
 - If the interviewer question has two parts, explicitly say whether both parts were answered.
@@ -46,12 +47,44 @@ Task 3 feedback guidance:
 """,
     "task4": """
 Task 4 feedback guidance:
+- Return exactly three criteria: content, organisation, language.
 - For content, name which of the four required aspects are complete, incomplete, inaccurate, or missing.
 - For organisation, mention opening/address to friend, closing phrase, logical order, and linking devices.
 - For language, name recurring grammar/vocabulary issues and give 1-2 corrected examples.
 - If content is 0, clearly explain the zeroing rule in Russian: the whole task receives 0.
 """,
 }
+
+EXPECTED_CRITERIA_KEYS = {
+    "task1": ["phonetics"],
+    "task2": ["question_1", "question_2", "question_3", "question_4"],
+    "task3": ["answer_1", "answer_2", "answer_3", "answer_4", "answer_5"],
+    "task4": ["content", "organisation", "language"],
+}
+
+
+def build_expected_criteria_prompt(task_type: str) -> str:
+    keys = EXPECTED_CRITERIA_KEYS.get(task_type, [])
+    if not keys:
+        return ""
+
+    key_lines = "\n".join(f'- "{key}"' for key in keys)
+    skeleton = ",\n".join(
+        f'        "{key}": {{"score": <int>, "max_score": <int>, "feedback": "<feedback in Russian>", "issues": []}}'
+        for key in keys
+    )
+    return f"""Required criteria keys for this task. Return exactly these keys and no placeholder keys:
+{key_lines}
+
+Do NOT return a key named "criterion_name". That word is only a placeholder and is invalid.
+If a required answer/question is missing or impossible to identify, still return its required key with score 0 and explain the problem.
+
+Required criteria object skeleton:
+{{
+    "criteria": {{
+{skeleton}
+    }}
+}}"""
 
 
 def build_error_topics_prompt(error_topics: list[dict]) -> str:
@@ -86,6 +119,7 @@ class OpenAIGradingProvider(GradingProvider):
         rubric = get_rubric(task_type)
         official_max_total = get_max_total(task_type)
         feedback_guidelines = TASK_FEEDBACK_GUIDELINES.get(task_type, "")
+        expected_criteria_prompt = build_expected_criteria_prompt(task_type)
         error_topics = context.get("error_topics", []) or []
         error_topics_prompt = build_error_topics_prompt(error_topics)
 
@@ -112,14 +146,16 @@ The official maximum total for this task is {official_max_total}.
 
 {feedback_guidelines}
 
+{expected_criteria_prompt}
+
 {error_topics_prompt}
 
 {issue_schema_note}
 
-Return ONLY a JSON object in this exact format:
+Return ONLY a JSON object in this exact format, using the required criteria keys listed above:
 {{
     "criteria": {{
-        "criterion_name": {{
+        "required_key_here": {{
             "score": <int>,
             "max_score": <int>,
             "feedback": "<specific diagnostic feedback in Russian>",
@@ -174,6 +210,9 @@ Student response transcript:
 
         criteria = {}
         for key, value in raw["criteria"].items():
+            if key == "criterion_name":
+                key = "overall"
+
             raw_issues = value.get("issues", []) if isinstance(value, dict) else []
             issues = []
             if isinstance(raw_issues, list):
