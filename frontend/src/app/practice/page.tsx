@@ -2,7 +2,7 @@
 
 import Link from 'next/link';
 import { useEffect, useMemo, useState } from 'react';
-import { getStoredToken } from '@/config/auth';
+import { getAuthHeaders, getStoredToken } from '@/config/auth';
 import { TASK_CONFIG, TaskType } from '@/config/tasks';
 
 interface QuestionListItem {
@@ -16,7 +16,23 @@ interface QuestionListItem {
   record_seconds: number;
 }
 
+interface AttemptHistoryItem {
+  id: string;
+  question_id?: string | null;
+  task_type: string;
+  status: string;
+}
+
+type TaskFilter = 'all' | TaskType;
+
 const TASK_ORDER: TaskType[] = ['task1', 'task2', 'task3', 'task4'];
+const FILTERS: { id: TaskFilter; label: string }[] = [
+  { id: 'all', label: 'Все' },
+  { id: 'task1', label: 'Задание 1' },
+  { id: 'task2', label: 'Задание 2' },
+  { id: 'task3', label: 'Задание 3' },
+  { id: 'task4', label: 'Задание 4' },
+];
 
 function formatTiming(question: QuestionListItem) {
   const prep = Math.round(question.prep_seconds / 60 * 10) / 10;
@@ -28,6 +44,8 @@ function formatTiming(question: QuestionListItem) {
 
 export default function PracticePage() {
   const [questions, setQuestions] = useState<QuestionListItem[]>([]);
+  const [attempts, setAttempts] = useState<AttemptHistoryItem[]>([]);
+  const [selectedFilter, setSelectedFilter] = useState<TaskFilter>('all');
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isAuthenticated = Boolean(getStoredToken());
@@ -35,22 +53,34 @@ export default function PracticePage() {
   useEffect(() => {
     let cancelled = false;
 
-    async function loadQuestions() {
+    async function loadPracticeData() {
       setIsLoading(true);
       setError(null);
 
       try {
         const apiUrl = process.env.NEXT_PUBLIC_API_URL ?? 'http://localhost:8000/api';
-        const response = await fetch(`${apiUrl}/questions`, {
+        const questionsResponse = await fetch(`${apiUrl}/questions`, {
           credentials: 'include',
         });
 
-        if (!response.ok) {
-          throw new Error(`Backend вернул ошибку ${response.status}.`);
+        if (!questionsResponse.ok) {
+          throw new Error(`Backend вернул ошибку ${questionsResponse.status}.`);
         }
 
-        const data = await response.json() as QuestionListItem[];
-        if (!cancelled) setQuestions(data);
+        const questionsData = await questionsResponse.json() as QuestionListItem[];
+        if (!cancelled) setQuestions(questionsData);
+
+        if (getStoredToken()) {
+          const attemptsResponse = await fetch(`${apiUrl}/attempts/history`, {
+            headers: getAuthHeaders(),
+            credentials: 'include',
+          });
+
+          if (attemptsResponse.ok) {
+            const attemptsData = await attemptsResponse.json() as AttemptHistoryItem[];
+            if (!cancelled) setAttempts(attemptsData);
+          }
+        }
       } catch (caughtError) {
         console.error(caughtError);
         if (!cancelled) {
@@ -61,12 +91,22 @@ export default function PracticePage() {
       }
     }
 
-    void loadQuestions();
+    void loadPracticeData();
 
     return () => {
       cancelled = true;
     };
   }, []);
+
+  const attemptedQuestionIds = useMemo(() => {
+    return new Set(
+      attempts
+        .filter((attempt) => attempt.status === 'completed' && attempt.question_id)
+        .map((attempt) => attempt.question_id as string),
+    );
+  }, [attempts]);
+
+  const visibleTaskTypes = selectedFilter === 'all' ? TASK_ORDER : [selectedFilter];
 
   const questionsByTask = useMemo(() => {
     return TASK_ORDER.reduce<Record<TaskType, QuestionListItem[]>>((acc, taskType) => {
@@ -98,6 +138,23 @@ export default function PracticePage() {
         )}
       </div>
 
+      <div className="mb-6 flex flex-wrap gap-2">
+        {FILTERS.map((filter) => (
+          <button
+            key={filter.id}
+            type="button"
+            onClick={() => setSelectedFilter(filter.id)}
+            className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
+              selectedFilter === filter.id
+                ? 'bg-blue-600 text-white'
+                : 'bg-white text-gray-700 ring-1 ring-gray-200 hover:bg-gray-50'
+            }`}
+          >
+            {filter.label}
+          </button>
+        ))}
+      </div>
+
       {isLoading && (
         <div className="rounded-lg border border-gray-200 bg-white p-8 text-center text-gray-500">
           Загружаем задания...
@@ -112,7 +169,7 @@ export default function PracticePage() {
 
       {!isLoading && !error && (
         <div className="space-y-8">
-          {TASK_ORDER.map((taskType) => (
+          {visibleTaskTypes.map((taskType) => (
             <section key={taskType} className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
               <div className="mb-5 flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
                 <div>
@@ -130,6 +187,7 @@ export default function PracticePage() {
                 <div className="grid gap-4 md:grid-cols-2">
                   {questionsByTask[taskType].map((question) => {
                     const isLocked = !question.is_demo && !isAuthenticated;
+                    const isAttempted = attemptedQuestionIds.has(question.id);
                     const href = isLocked
                       ? '/register'
                       : `/exam/${question.task_type}?questionId=${encodeURIComponent(question.id)}`;
@@ -160,9 +218,16 @@ export default function PracticePage() {
                           </span>
                         </div>
                         <p className="mt-3 text-xs text-gray-500">{formatTiming(question)}</p>
-                        <p className="mt-4 text-sm font-semibold text-blue-700">
-                          {isLocked ? 'Зарегистрироваться →' : 'Начать →'}
-                        </p>
+                        <div className="mt-4 flex items-center justify-between gap-3">
+                          <p className="text-sm font-semibold text-blue-700">
+                            {isLocked ? 'Зарегистрироваться →' : 'Начать →'}
+                          </p>
+                          {isAuthenticated && isAttempted && (
+                            <span className="rounded-full bg-emerald-100 px-2.5 py-1 text-xs font-semibold text-emerald-700">
+                              Пройдено
+                            </span>
+                          )}
+                        </div>
                       </Link>
                     );
                   })}
