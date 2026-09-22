@@ -153,9 +153,9 @@ export default function HistoryPage() {
       {!isLoading && !error && attempts.length === 0 && (
         <div className="rounded-2xl border border-gray-200 bg-white p-8 text-center shadow-sm">
           <h2 className="text-xl font-bold text-gray-950">Попыток пока нет</h2>
-          <p className="mt-2 text-gray-600">Пройдите демо-задание, чтобы увидеть результат здесь.</p>
-          <Link href="/exam/task2" className="mt-6 inline-flex rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700">
-            Попробовать задание
+          <p className="mt-2 text-gray-600">Выберите вариант в разделе «Практика», чтобы увидеть результат здесь.</p>
+          <Link href="/practice" className="mt-6 inline-flex rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700">
+            Перейти к практике
           </Link>
         </div>
       )}

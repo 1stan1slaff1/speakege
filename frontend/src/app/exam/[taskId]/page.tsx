@@ -4,7 +4,7 @@ import { useState, useEffect, useRef } from 'react';
 import { useParams, useRouter, useSearchParams } from 'next/navigation';
 import { TASK_CONFIG, TaskType, RecordingSegment } from '@/config/tasks';
 import { DEFAULT_CURRENCY_LABEL, DEFAULT_TASK_CREDIT_COST, BillingPublicInfo } from '@/config/billing';
-import { getAuthHeaders } from '@/config/auth';
+import { getAuthHeaders, getStoredToken } from '@/config/auth';
 import { useTimer } from '@/hooks/useTimer';
 import { useRecorder } from '@/hooks/useRecorder';
 import Timer from '@/components/exam/Timer';
@@ -416,6 +416,7 @@ export default function ExamPage() {
   const [isQuestionLoading, setIsQuestionLoading] = useState(false);
   const [taskCreditCost, setTaskCreditCost] = useState(DEFAULT_TASK_CREDIT_COST);
   const [currencyLabel, setCurrencyLabel] = useState(DEFAULT_CURRENCY_LABEL);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
   const [currentAudioPromptIndex, setCurrentAudioPromptIndex] = useState(0);
   const [fallbackPromptText, setFallbackPromptText] = useState<string | null>(null);
   const [activeAudioTitle, setActiveAudioTitle] = useState('Звучит аудио');
@@ -722,6 +723,19 @@ export default function ExamPage() {
   }, []);
 
   useEffect(() => {
+    function syncAuthState() {
+      setIsAuthenticated(Boolean(getStoredToken()));
+    }
+
+    syncAuthState();
+    window.addEventListener('speakege-auth-changed', syncAuthState);
+
+    return () => {
+      window.removeEventListener('speakege-auth-changed', syncAuthState);
+    };
+  }, []);
+
+  useEffect(() => {
     let cancelled = false;
 
     async function loadDemoQuestion() {
@@ -959,7 +973,9 @@ export default function ExamPage() {
 
       <div className="mb-6 rounded-lg border border-blue-100 bg-blue-50 px-4 py-3 text-sm text-blue-900">
         <span className="font-semibold">Стоимость AI-проверки:</span>{' '}
-        {currentTaskCreditCost} {currencyLabel}. Сейчас демо-проверка доступна без списания; после запуска аккаунтов стоимость можно будет менять в backend config.
+        {isAuthenticated
+          ? `${currentTaskCreditCost} ${currencyLabel}. Кредиты списываются при отправке ответа на проверку.`
+          : `Демо-проверка доступна без списания. После входа в аккаунт проверка будет стоить ${currentTaskCreditCost} ${currencyLabel}.`}
       </div>
 
       <div className="bg-white border border-gray-200 rounded-lg p-8 flex flex-col items-center gap-6">

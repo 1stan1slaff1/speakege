@@ -62,7 +62,7 @@ export default function LoginPage() {
       <div className="w-full rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h1 className="text-2xl font-bold text-gray-950">Вход в аккаунт</h1>
         <p className="mt-3 text-sm leading-6 text-gray-600">
-          Войдите, чтобы позже сохранять историю попыток, использовать кредиты и открывать больше заданий.
+          Войдите, чтобы сохранять историю попыток, использовать кредиты и открывать больше заданий.
         </p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">

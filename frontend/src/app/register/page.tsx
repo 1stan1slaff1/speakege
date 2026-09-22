@@ -6,11 +6,11 @@ import { FormEvent, useState } from 'react';
 import { DEFAULT_FREE_REGISTERED_CREDITS } from '@/config/billing';
 import { storeToken, TokenResponse } from '@/config/auth';
 
-const PLANNED_FREE_LIMITS = [
+const ACCOUNT_BENEFITS = [
   `${DEFAULT_FREE_REGISTERED_CREDITS} стартовых кредитов после регистрации`,
-  'гибкая стоимость проверки в зависимости от типа задания',
+  'дополнительные варианты по каждому типу задания',
   'история результатов и разбор прогресса',
-  'покупка дополнительных кредитов для AI-проверок',
+  'баланс кредитов для AI-проверок',
 ];
 
 async function readApiError(response: Response) {
@@ -69,14 +69,14 @@ export default function RegisterPage() {
     <div className="mx-auto grid min-h-[calc(100vh-70px)] max-w-5xl gap-8 px-4 py-12 lg:grid-cols-[0.9fr_1.1fr] lg:items-center">
       <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
         <p className="mb-3 inline-flex rounded-full bg-blue-50 px-3 py-1 text-xs font-semibold text-blue-700 ring-1 ring-blue-100">
-          Аккаунты MVP
+          Аккаунт SpeakEGE
         </p>
         <h1 className="text-3xl font-bold text-gray-950">Создайте аккаунт, чтобы открыть больше заданий</h1>
         <p className="mt-4 text-sm leading-6 text-gray-600">
-          Сейчас доступны фиксированные демо-задания без регистрации. Аккаунт позволит связать ваши гостевые попытки с пользователем и подготовит доступ к кредитам, истории и дополнительным заданиям.
+          Зарегистрируйтесь, чтобы получить стартовые кредиты, сохранять историю попыток и открывать дополнительные варианты для тренировки.
         </p>
         <ul className="mt-6 space-y-3">
-          {PLANNED_FREE_LIMITS.map((item) => (
+          {ACCOUNT_BENEFITS.map((item) => (
             <li key={item} className="flex gap-3 text-sm text-gray-700">
               <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
                 ✓
@@ -89,7 +89,7 @@ export default function RegisterPage() {
 
       <div className="rounded-2xl border border-gray-200 bg-white p-6 shadow-sm">
         <h2 className="text-xl font-bold text-gray-950">Форма регистрации</h2>
-        <p className="mt-2 text-sm text-gray-500">Минимальная регистрация уже подключена. Кредиты будут подключены следующим этапом.</p>
+        <p className="mt-2 text-sm text-gray-500">После регистрации вы получите стартовые кредиты для AI-проверок.</p>
 
         <form onSubmit={handleSubmit} className="mt-6 space-y-4">
           <label className="block text-sm font-medium text-gray-700">

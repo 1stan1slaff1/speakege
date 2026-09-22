@@ -121,7 +121,7 @@ export default function AccountPage() {
         <div className="rounded-2xl border border-blue-100 bg-white p-8 shadow-sm">
           <h1 className="text-2xl font-bold text-gray-950">Личный кабинет</h1>
           <p className="mt-3 text-gray-600">
-            Войдите или зарегистрируйтесь, чтобы видеть баланс кредитов, историю попыток и будущие покупки.
+            Войдите или зарегистрируйтесь, чтобы видеть баланс кредитов, историю попыток и результаты AI-проверок.
           </p>
           <div className="mt-6 flex gap-3">
             <Link href="/login" className="rounded-lg bg-blue-600 px-5 py-2.5 font-semibold text-white hover:bg-blue-700">
@@ -221,9 +221,9 @@ export default function AccountPage() {
               {recentAttempts.length === 0 ? (
                 <div className="mt-6 rounded-lg bg-gray-50 p-6 text-center">
                   <p className="font-medium text-gray-800">Попыток пока нет</p>
-                  <p className="mt-1 text-sm text-gray-500">Пройдите демо-задание, чтобы увидеть результат здесь.</p>
-                  <Link href="/exam/task2" className="mt-4 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
-                    Попробовать задание
+                  <p className="mt-1 text-sm text-gray-500">Выберите вариант в разделе «Практика», чтобы увидеть результат здесь.</p>
+                  <Link href="/practice" className="mt-4 inline-flex rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white hover:bg-blue-700">
+                    Перейти к практике
                   </Link>
                 </div>
               ) : (

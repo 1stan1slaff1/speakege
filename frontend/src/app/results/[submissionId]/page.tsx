@@ -4,7 +4,7 @@ import Link from 'next/link';
 import { useParams, useSearchParams } from 'next/navigation';
 import { Suspense, useEffect, useState } from 'react';
 import { DEFAULT_FREE_REGISTERED_CREDITS } from '@/config/billing';
-import { getAuthHeaders } from '@/config/auth';
+import { getAuthHeaders, getStoredToken } from '@/config/auth';
 import { TASK_CONFIG, TaskType } from '@/config/tasks';
 
 interface FeedbackIssue {
@@ -129,6 +129,20 @@ function ResultsContent() {
         : null,
   );
   const [errorTopics, setErrorTopics] = useState<Record<string, ErrorTopic>>({});
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    function syncAuthState() {
+      setIsAuthenticated(Boolean(getStoredToken()));
+    }
+
+    syncAuthState();
+    window.addEventListener('speakege-auth-changed', syncAuthState);
+
+    return () => {
+      window.removeEventListener('speakege-auth-changed', syncAuthState);
+    };
+  }, []);
 
   useEffect(() => {
     let cancelled = false;
@@ -246,35 +260,32 @@ function ResultsContent() {
         </div>
       </div>
 
-      <div className="rounded-lg border border-blue-200 bg-blue-50 p-6 mb-6">
-        <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
-          <div>
-            <h2 className="font-semibold text-blue-950">Хотите больше заданий?</h2>
-            <p className="mt-2 text-sm leading-6 text-blue-800">
-              Это фиксированное демо-задание. После регистрации планируется стартовый баланс {DEFAULT_FREE_REGISTERED_CREDITS} кредитов, больше вариантов, история попыток и покупка дополнительных AI-проверок.
-            </p>
-          </div>
-          <div className="flex shrink-0 gap-2">
-            <Link
-              href="/register"
-              className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
-            >
-              Зарегистрироваться
-            </Link>
-            <Link
-              href="/login"
-              className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-blue-700 ring-1 ring-blue-200 transition-colors hover:bg-blue-50"
-            >
-              Войти
-            </Link>
+      {isAuthenticated === false && (
+        <div className="rounded-lg border border-blue-200 bg-blue-50 p-6 mb-6">
+          <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+            <div>
+              <h2 className="font-semibold text-blue-950">Хотите больше заданий?</h2>
+              <p className="mt-2 text-sm leading-6 text-blue-800">
+                Зарегистрируйтесь, чтобы получить {DEFAULT_FREE_REGISTERED_CREDITS} стартовых кредитов, больше вариантов и историю попыток.
+              </p>
+            </div>
+            <div className="flex shrink-0 gap-2">
+              <Link
+                href="/register"
+                className="rounded-lg bg-blue-600 px-4 py-2 text-sm font-semibold text-white transition-colors hover:bg-blue-700"
+              >
+                Зарегистрироваться
+              </Link>
+              <Link
+                href="/login"
+                className="rounded-lg bg-white px-4 py-2 text-sm font-semibold text-blue-700 ring-1 ring-blue-200 transition-colors hover:bg-blue-50"
+              >
+                Войти
+              </Link>
+            </div>
           </div>
         </div>
-      </div>
-
-      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
-        <h2 className="font-semibold text-gray-900 mb-2">Общий отзыв</h2>
-        <p className="text-gray-700 leading-relaxed">{grade.summary}</p>
-      </div>
+      )}
 
       <div className="space-y-4 mb-6">
         <h2 className="font-semibold text-gray-900">Разбор по критериям</h2>
@@ -349,6 +360,11 @@ function ResultsContent() {
             )}
           </div>
         ))}
+      </div>
+
+      <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
+        <h2 className="font-semibold text-gray-900 mb-2">Общий отзыв</h2>
+        <p className="text-gray-700 leading-relaxed">{grade.summary}</p>
       </div>
 
       <div className="bg-gray-50 border border-gray-200 rounded-lg p-6 mb-6">
