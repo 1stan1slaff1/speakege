@@ -72,6 +72,41 @@ PY
 
 ---
 
+## Backend: dev PostgreSQL through SSH tunnel
+
+Use this when running backend locally and PostgreSQL is on the VPS.
+
+Open the tunnel in a separate terminal and keep it running:
+
+```bash
+ssh -N -L 15432:127.0.0.1:5432 speakegedb
+```
+
+Check the tunnel:
+
+```bash
+python - <<'PY'
+import socket
+s = socket.create_connection(("127.0.0.1", 15432), timeout=5)
+print("tunnel ok")
+s.close()
+PY
+```
+
+Local `backend/.env` for tunnel:
+
+```env
+DATABASE_URL=postgresql://speakege_user:ENCODED_PASSWORD@127.0.0.1:15432/speakege?sslmode=disable
+```
+
+Production `DATABASE_URL` when backend and PostgreSQL run on the same VPS:
+
+```env
+DATABASE_URL=postgresql://speakege_user:ENCODED_PASSWORD@127.0.0.1:5432/speakege
+```
+
+---
+
 ## Backend: migrations
 
 Run from `backend/` with venv activated:
