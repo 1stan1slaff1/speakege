@@ -1,5 +1,9 @@
+'use client';
+
 import Link from 'next/link';
+import { useEffect, useState } from 'react';
 import { DEFAULT_FREE_REGISTERED_CREDITS, DEFAULT_TASK_CREDIT_COST } from '@/config/billing';
+import { getStoredToken } from '@/config/auth';
 import { TASK_CONFIG, TaskType } from '@/config/tasks';
 
 const TASK_ORDER: TaskType[] = ['task1', 'task2', 'task3', 'task4'];
@@ -17,7 +21,30 @@ const ACCOUNT_BENEFITS = [
   'история попыток и результаты в личном кабинете',
 ];
 
+const PREPARATION_STEPS = [
+  'Выберите вариант в разделе практики.',
+  'Запишите ответ в формате экзамена.',
+  'Откройте результат и повторите слабые темы.',
+];
+
 export default function Home() {
+  const [isAuthenticated, setIsAuthenticated] = useState<boolean | null>(null);
+
+  useEffect(() => {
+    function syncAuthState() {
+      setIsAuthenticated(Boolean(getStoredToken()));
+    }
+
+    syncAuthState();
+    window.addEventListener('speakege-auth-changed', syncAuthState);
+
+    return () => {
+      window.removeEventListener('speakege-auth-changed', syncAuthState);
+    };
+  }, []);
+
+  const isLoggedIn = isAuthenticated === true;
+
   return (
     <div className="bg-gray-50">
       <section className="mx-auto max-w-6xl px-4 py-14 sm:px-6 lg:py-20">
@@ -39,34 +66,62 @@ export default function Home() {
               >
                 Выбрать задание
               </Link>
-              <Link
-                href="/register"
-                className="rounded-lg bg-white px-6 py-3 text-center font-semibold text-gray-800 ring-1 ring-gray-200 transition-colors hover:bg-gray-50"
-              >
-                Создать аккаунт
-              </Link>
+              {isAuthenticated === false ? (
+                <Link
+                  href="/register"
+                  className="rounded-lg bg-white px-6 py-3 text-center font-semibold text-gray-800 ring-1 ring-gray-200 transition-colors hover:bg-gray-50"
+                >
+                  Создать аккаунт
+                </Link>
+              ) : (
+                <Link
+                  href="/learn"
+                  className="rounded-lg bg-white px-6 py-3 text-center font-semibold text-gray-800 ring-1 ring-gray-200 transition-colors hover:bg-gray-50"
+                >
+                  Материалы
+                </Link>
+              )}
             </div>
           </div>
 
-          <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
-            <h2 className="text-lg font-bold text-gray-950">Что даёт аккаунт</h2>
-            <p className="mt-2 text-sm leading-6 text-gray-600">
-              Аккаунт сохраняет ваши результаты, открывает дополнительные варианты и даёт стартовый баланс для AI-проверок.
-            </p>
-            <p className="mt-4 rounded-lg bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
-              Стартовый баланс: {DEFAULT_FREE_REGISTERED_CREDITS} кредитов
-            </p>
-            <ul className="mt-5 space-y-3">
-              {ACCOUNT_BENEFITS.map((benefit) => (
-                <li key={benefit} className="flex gap-3 text-sm text-gray-700">
-                  <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">
-                    ✓
-                  </span>
-                  <span>{benefit}</span>
-                </li>
-              ))}
-            </ul>
-          </div>
+          {isLoggedIn || isAuthenticated === null ? (
+            <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-gray-950">Как продолжить</h2>
+              <p className="mt-2 text-sm leading-6 text-gray-600">
+                Тренировка строится вокруг короткого цикла: задание, запись ответа, AI-разбор и повторение слабых тем.
+              </p>
+              <ol className="mt-5 space-y-3">
+                {PREPARATION_STEPS.map((step, index) => (
+                  <li key={step} className="flex gap-3 text-sm text-gray-700">
+                    <span className="mt-0.5 flex h-6 w-6 shrink-0 items-center justify-center rounded-full bg-blue-100 text-xs font-bold text-blue-700">
+                      {index + 1}
+                    </span>
+                    <span>{step}</span>
+                  </li>
+                ))}
+              </ol>
+            </div>
+          ) : (
+            <div className="rounded-2xl border border-blue-100 bg-white p-6 shadow-sm">
+              <h2 className="text-lg font-bold text-gray-950">Что даёт аккаунт</h2>
+              <p className="mt-2 text-sm leading-6 text-gray-600">
+                Аккаунт сохраняет ваши результаты, открывает дополнительные варианты и даёт стартовый баланс для AI-проверок.
+              </p>
+              <p className="mt-4 rounded-lg bg-blue-50 px-4 py-3 text-sm font-semibold text-blue-800">
+                Стартовый баланс: {DEFAULT_FREE_REGISTERED_CREDITS} кредитов
+              </p>
+              <ul className="mt-5 space-y-3">
+                {ACCOUNT_BENEFITS.map((benefit) => (
+                  <li key={benefit} className="flex gap-3 text-sm text-gray-700">
+                    <span className="mt-0.5 flex h-5 w-5 shrink-0 items-center justify-center rounded-full bg-green-100 text-xs font-bold text-green-700">
+                      ✓
+                    </span>
+                    <span>{benefit}</span>
+                  </li>
+                ))}
+              </ul>
+            </div>
+          )}
         </div>
       </section>
 
