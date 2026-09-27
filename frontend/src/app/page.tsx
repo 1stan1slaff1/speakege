@@ -139,7 +139,7 @@ export default function Home() {
             return (
               <Link
                 key={taskType}
-                href="/practice"
+                href={`/practice?task_type=${taskType}`}
                 className="group rounded-2xl border border-gray-200 bg-white p-5 shadow-sm transition hover:-translate-y-0.5 hover:border-blue-200 hover:shadow-md"
               >
                 <div className="mb-4 flex h-11 w-11 items-center justify-center rounded-xl bg-blue-50 font-bold text-blue-700">

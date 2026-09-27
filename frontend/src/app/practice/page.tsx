@@ -42,6 +42,20 @@ function formatTiming(question: QuestionListItem) {
     : `${record} мин ответ`;
 }
 
+function isTaskType(value: string | null): value is TaskType {
+  return Boolean(value && TASK_ORDER.includes(value as TaskType));
+}
+
+function getFilterFromSearch(search: string): TaskFilter {
+  const params = new URLSearchParams(search);
+  const taskType = params.get('task_type') ?? params.get('task');
+  return isTaskType(taskType) ? taskType : 'all';
+}
+
+function getPracticeFilterUrl(filter: TaskFilter) {
+  return filter === 'all' ? '/practice' : `/practice?task_type=${filter}`;
+}
+
 export default function PracticePage() {
   const [questions, setQuestions] = useState<QuestionListItem[]>([]);
   const [attempts, setAttempts] = useState<AttemptHistoryItem[]>([]);
@@ -49,6 +63,24 @@ export default function PracticePage() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const isAuthenticated = Boolean(getStoredToken());
+
+  useEffect(() => {
+    function syncFilterFromUrl() {
+      setSelectedFilter(getFilterFromSearch(window.location.search));
+    }
+
+    syncFilterFromUrl();
+    window.addEventListener('popstate', syncFilterFromUrl);
+
+    return () => {
+      window.removeEventListener('popstate', syncFilterFromUrl);
+    };
+  }, []);
+
+  function handleFilterChange(filter: TaskFilter) {
+    setSelectedFilter(filter);
+    window.history.replaceState(null, '', getPracticeFilterUrl(filter));
+  }
 
   useEffect(() => {
     let cancelled = false;
@@ -143,7 +175,7 @@ export default function PracticePage() {
           <button
             key={filter.id}
             type="button"
-            onClick={() => setSelectedFilter(filter.id)}
+            onClick={() => handleFilterChange(filter.id)}
             className={`rounded-full px-4 py-2 text-sm font-semibold transition-colors ${
               selectedFilter === filter.id
                 ? 'bg-blue-600 text-white'
