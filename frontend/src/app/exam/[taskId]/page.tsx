@@ -119,6 +119,7 @@ Snowflakes are ice crystals which fall through the Earth's atmosphere as snow. P
 The most typical patterns for a snowflake are needles, columns, plates and rimes. The shape and the pattern of a snowflake largely depend on the weather conditions. The study of snowflakes has identified that long, thin needle-like ice crystals form at around zero, while a lower temperature will lead to very flat crystals. Further changes in temperature as a snowflake falls determine more complicated shapes of snowflakes. The size of a snowflake also depends on the air temperature.`,
     audio: {
       intro: '/audio/ege/task1/intro.mp3',
+      startCue: '/audio/ege/common/start_reading.mp3',
     },
   },
   task2: {

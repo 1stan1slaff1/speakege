@@ -31,7 +31,10 @@ def make_task1_question(question_id: str, text: str) -> Question:
         task_type="task1",
         prompt_text=task1_prompt(text),
         reference_text=text,
-        audio=QuestionAudio(intro="/audio/ege/task1/intro.mp3"),
+        audio=QuestionAudio(
+            intro="/audio/ege/task1/intro.mp3",
+            start_cue="/audio/ege/common/start_reading.mp3",
+        ),
         prep_seconds=90,
         record_seconds=90,
     )
