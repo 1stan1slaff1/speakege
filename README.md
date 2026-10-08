@@ -20,7 +20,7 @@ cd ~/projects/speakege/backend
 python3 -m venv .venv
 source .venv/bin/activate
 
-python -m pip install --upgrade pip
+python3 -m pip install --upgrade pip
 pip install -r requirements.txt
 ```
 
@@ -54,7 +54,7 @@ openssl rand -hex 32
 or:
 
 ```bash
-python - <<'PY'
+python3 - <<'PY'
 import secrets
 print(secrets.token_urlsafe(48))
 PY
@@ -63,7 +63,7 @@ PY
 If PostgreSQL password has special characters, URL-encode it:
 
 ```bash
-python - <<'PY'
+python3 - <<'PY'
 from urllib.parse import quote
 password = input("Password: ")
 print(quote(password, safe=""))
@@ -85,7 +85,7 @@ ssh -N -L 15432:127.0.0.1:5432 speakegedb
 Check the tunnel:
 
 ```bash
-python - <<'PY'
+python3 - <<'PY'
 import socket
 s = socket.create_connection(("127.0.0.1", 15432), timeout=5)
 print("tunnel ok")
@@ -190,7 +190,7 @@ Backend syntax check without creating `__pycache__`:
 ```bash
 cd ~/projects/speakege
 
-python - <<'PY'
+python3 - <<'PY'
 from pathlib import Path
 import ast
 
@@ -275,7 +275,7 @@ Check latest credit ledger entries:
 cd ~/projects/speakege/backend
 source .venv/bin/activate
 
-python - <<'PY'
+python3 - <<'PY'
 from sqlalchemy import text
 from app.database import engine
 
@@ -302,7 +302,7 @@ Run from `backend/`:
 cd ~/projects/speakege/backend
 source .venv/bin/activate
 
-python scripts/grant_credits.py user@example.com 100 manual_test_grant
+python3 scripts/grant_credits.py user@example.com 100 manual_test_grant
 ```
 
 Arguments:
@@ -316,7 +316,7 @@ reason  — optional ledger reason, default manual_grant
 Example:
 
 ```bash
-python scripts/grant_credits.py student@example.com 40 manual_grant
+python3 scripts/grant_credits.py student@example.com 40 manual_grant
 ```
 
 ---
@@ -352,7 +352,7 @@ Latest attempts:
 cd ~/projects/speakege/backend
 source .venv/bin/activate
 
-python - <<'PY'
+python3 - <<'PY'
 from sqlalchemy import text
 from app.database import engine
 
@@ -375,7 +375,7 @@ Tables in current DB:
 cd ~/projects/speakege/backend
 source .venv/bin/activate
 
-python - <<'PY'
+python3 - <<'PY'
 from sqlalchemy import text
 from app.database import engine
 
@@ -402,7 +402,7 @@ Run after migrations:
 cd ~/projects/speakege/backend
 source .venv/bin/activate
 
-python scripts/seed_demo_questions.py
+python3 scripts/seed_demo_questions.py
 ```
 
 Check seeded questions:
@@ -411,7 +411,7 @@ Check seeded questions:
 cd ~/projects/speakege/backend
 source .venv/bin/activate
 
-python - <<'PY'
+python3 - <<'PY'
 from sqlalchemy import text
 from app.database import engine
 
@@ -445,7 +445,7 @@ Run after migrations:
 cd ~/projects/speakege/backend
 source .venv/bin/activate
 
-python scripts/seed_error_topics.py
+python3 scripts/seed_error_topics.py
 ```
 
 Test error topics endpoint:
@@ -469,6 +469,20 @@ Example browser URL:
 ```text
 http://localhost:3000/audio/ege/task3/variant01/q1.mp3
 ```
+
+OpenAI test audio lives in `frontend/public/audio/ege_openai_test/` (app routes variants 1-2 there).
+
+Generate with variant A (whole files, no seams). Dry-run by default; needs `OPENAI_API_KEY` in `backend/.env`:
+
+```bash
+cd ~/projects/speakege
+
+python3 tools/generate_openai_audio_variant_a.py --variants-per-task 2
+python3 tools/generate_openai_audio_variant_a.py --variants-per-task 2 --generate
+python3 tools/generate_openai_audio_variant_a.py --start-variant 3 --variants-per-task 20 --generate
+```
+
+Do not use `--force` blindly: it re-bills OpenAI for cached files.
 
 ---
 
