@@ -43,6 +43,7 @@ class Question(BaseModel):
     audio: QuestionAudio | None = None
     prep_seconds: int
     record_seconds: int
+    position: int = 0  # 1-20 from DB; 0 = unknown (bank fallback)
 
 
 class QuestionListItem(BaseModel):

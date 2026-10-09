@@ -21,6 +21,7 @@ def question_record_to_schema(record: QuestionRecord) -> Question:
         audio=QuestionAudio.model_validate(record.audio) if record.audio else None,
         prep_seconds=record.prep_seconds,
         record_seconds=record.record_seconds,
+        position=record.position,
     )
 
 

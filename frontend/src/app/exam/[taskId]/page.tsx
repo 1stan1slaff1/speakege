@@ -26,6 +26,7 @@ interface TaskAudioConfig {
 interface DemoQuestion {
   id?: string;
   taskType?: TaskType;
+  position?: number;
   promptText: string;
   gradingPromptText?: string;
   imageUrl?: string;
@@ -47,6 +48,7 @@ interface BackendQuestionAudio {
 interface BackendQuestion {
   id: string;
   task_type: TaskType;
+  position: number;
   prompt_text: string;
   grading_prompt_text?: string | null;
   image_url?: string | null;
@@ -62,6 +64,7 @@ function mapBackendQuestion(question: BackendQuestion): DemoQuestion {
   return {
     id: question.id,
     taskType: question.task_type,
+    position: question.position ?? 0,
     promptText: question.prompt_text,
     gradingPromptText: question.grading_prompt_text ?? undefined,
     imageUrl: question.image_url ?? undefined,
@@ -112,6 +115,7 @@ const TASK3_INTERVIEW_INTRO = "Hello! It's Teenagers Round the World Channel. Ou
 
 const DEMO_QUESTIONS: Record<TaskType, DemoQuestion> = {
   task1: {
+    position: 1,
     promptText: `Task 1. You are going to read the text aloud. You have 1.5 minutes to read the text silently, then be ready to read it aloud. Remember that you will not have more than 1.5 minutes for reading aloud.
 
 Snowflakes are ice crystals which fall through the Earth's atmosphere as snow. People like to think that every snowflake has a unique shape. However, it is not true. While snowflakes may look different, they can still be classified into eight groups and about eighty different variants. Some scientists have done a lot of research into making a kind of catalogue of snowflakes.
@@ -123,6 +127,7 @@ The most typical patterns for a snowflake are needles, columns, plates and rimes
     },
   },
   task2: {
+    position: 1,
     promptText: `Task 2. Study the advertisement.
 
 THE BEST CLINIC IN TOWN!
@@ -147,6 +152,7 @@ You have 20 seconds to ask each question.`,
     },
   },
   task3: {
+    position: 1,
     promptText: `Task 3. You are going to give an interview. You have to answer five questions.
 
 Give full answers to the questions: 2–3 sentences.
@@ -176,6 +182,7 @@ ${TASK3_INTERVIEW_QUESTIONS.map((question, index) => `${index + 1}) ${question}`
     },
   },
   task4: {
+    position: 1,
     promptText: `Task 4. Imagine that you and your friend are doing a school project “Ideal weekend”. You have found two photos to illustrate it but for technical reasons you cannot send them now. Leave a voice message to your friend explaining your choice of the photos and sharing some ideas about the project.
 
 In 2.5 minutes be ready to:
@@ -961,6 +968,7 @@ export default function ExamPage() {
         title={task.title}
         description={task.description}
         promptText={question.promptText}
+        variantNumber={question.position}
         imageUrl={question.imageUrl}
         imageUrls={question.imageUrls}
         imageCaptions={question.imageCaptions}

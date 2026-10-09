@@ -4,6 +4,7 @@ interface TaskDisplayProps {
   title: string;
   description: string;
   promptText: string;
+  variantNumber?: number;
   imageUrl?: string;
   imageUrls?: readonly string[];
   imageCaptions?: readonly string[];
@@ -13,6 +14,7 @@ export default function TaskDisplay({
   title,
   description,
   promptText,
+  variantNumber,
   imageUrl,
   imageUrls,
   imageCaptions,
@@ -22,7 +24,14 @@ export default function TaskDisplay({
   return (
     <div className="bg-white border border-gray-200 rounded-lg p-6 mb-6">
       <div className="mb-4">
-        <h2 className="text-xl font-bold text-gray-900">{title}</h2>
+        <h2 className="text-xl font-bold text-gray-900">
+          {title}
+          {!!variantNumber && variantNumber > 0 && (
+            <span className="ml-2 align-middle text-sm font-semibold text-blue-700 bg-blue-50 border border-blue-200 rounded-full px-2.5 py-0.5">
+              Вариант {variantNumber}
+            </span>
+          )}
+        </h2>
         <p className="text-gray-500 text-sm mt-1">{description}</p>
       </div>
       <div className="border-t pt-4">
