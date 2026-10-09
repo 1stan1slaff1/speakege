@@ -470,9 +470,11 @@ Example browser URL:
 http://localhost:3000/audio/ege/task3/variant01/q1.mp3
 ```
 
-OpenAI test audio lives in `frontend/public/audio/ege_openai_test/` (app routes variants 1-2 there).
+Prompt audio lives in `frontend/public/audio/ege/` (OpenAI set, variant A).
 
-Generate with variant A (whole files, no seams). Dry-run by default; needs `OPENAI_API_KEY` in `backend/.env`:
+Regenerate with variant A (whole files, no seams) into the staging folder
+`frontend/public/audio/ege_openai_test/`. Dry-run by default; needs
+`OPENAI_API_KEY` in `backend/.env`:
 
 ```bash
 cd ~/projects/speakege
@@ -480,6 +482,13 @@ cd ~/projects/speakege
 python3 tools/generate_openai_audio_variant_a.py --variants-per-task 2
 python3 tools/generate_openai_audio_variant_a.py --variants-per-task 2 --generate
 python3 tools/generate_openai_audio_variant_a.py --start-variant 3 --variants-per-task 20 --generate
+```
+
+Copy regenerated finals from staging to `ege/` (excludes caches):
+
+```bash
+cd ~/projects/speakege/frontend/public/audio/ege_openai_test
+tar cf - --exclude=_chunks --exclude=_whole . | (cd ../ege && tar xf -)
 ```
 
 Do not use `--force` blindly: it re-bills OpenAI for cached files.

@@ -54,7 +54,8 @@ Total 20. Task1 text is read by the student, never voiced.
 - Baseline: `frontend/public/audio/ege/` — 244 Kokoro mp3
   (`bm_fable`, speed 0.8). Manifest `content/ege_audio_manifest.json`,
   builder `tools/build_ege_audio_manifest.py`.
-- OpenAI replacement test: `frontend/public/audio/ege_openai_test/`,
+- OpenAI set: `frontend/public/audio/ege/`
+  (generated into `ege_openai_test/`, then migrated),
   model `gpt-4o-mini-tts`, voice `fable`, speed 1.0.
   - `tools/generate_openai_audio_variant_b.py` — chunked + concatenated.
     REJECTED: seams are audible.
@@ -67,25 +68,22 @@ Total 20. Task1 text is read by the student, never voiced.
     once vocalized it (task4/variant02 intro). User decision: KEEP them.
     Verify files with `tools/check_openai_audio_transcripts.py`, regenerate
     only flagged files (ad-lib may recur with the same instructions).
-- Test split in `demo_bank.py` (`audio_root_for_variant`):
-  variants 1-2 -> `ege_openai_test`, 3+ -> `ege`.
+- All variants use `ege/` (`audio_root_for_variant` returns it unconditionally).
+  The `ege_openai_test/` folder was removed from git after migration; regen
+  caches (`_whole/`, `_chunks/`) may remain on disk untracked.
 - Roles: agent runs dry-runs only (no API key, no billing).
   The USER runs `--generate` locally (key in `backend/.env`).
 
 ## Pending work (update as it moves)
 
-0. DONE: user keeps current TTS instructions (voice style).
-   All 244 OpenAI files (variant A) generated; transcript audit found 2
-   bad intros (task4/variant02+variant10, model ad-lib) — regenerated
-   with variant A and re-verified via checker.
-   Committed: TTS scripts, docs, full ege_openai_test/ set (244 mp3,
-   caches excluded), all-variants-to-test routing, whole manifest.
-1. Ear-checks (close before final migration): common/start_reading
-   ("stop"?) and task3/variant08/q1 ("teens"?).
+0. DONE: OpenAI prompt audio (variant A, 244 files) generated,
+   transcript-audited (2 bad intros regenerated + re-verified), migrated
+   to `ege/`, test routing removed, committed. Instructions kept per user.
+1. Ear-checks (close if still open): common/start_reading ("stop"?) and
+   task3/variant08/q1 ("teens"?).
 2. Full in-browser listening test of all variants.
-3. Final migration: BACK UP uncommitted Kokoro `ege/` first, then move
-   OpenAI audio to `ege/`, remove test routing, re-seed, commit.
-
+3. Next feature candidates: payments (pricing page is a placeholder),
+   real Task4 images, Task1 pronunciation scoring.
 ## Key frontend files
 
 - `frontend/src/app/exam/[taskId]/page.tsx` — exam flow.

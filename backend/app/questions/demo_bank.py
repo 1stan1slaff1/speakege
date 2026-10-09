@@ -26,9 +26,8 @@ def task1_prompt(text: str) -> str:
 
 
 def audio_root_for_variant(variant: int) -> str:
-    # TEMPORARY test routing: all variants use OpenAI audio so the full set
-    # can be checked in the browser. Final migration moves files to /audio/ege.
-    return "/audio/ege_openai_test"
+    # All variants use the OpenAI set in /audio/ege.
+    return "/audio/ege"
 
 
 def make_task1_question(question_id: str, text: str, *, variant: int) -> Question:
