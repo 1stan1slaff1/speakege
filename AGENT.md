@@ -63,6 +63,10 @@ Total 20. Task1 text is read by the student, never voiced.
     Dry-run by default; `--generate` spends real money (~$18.7/1M chars).
   - Voice/instructions change ONLY in the script
     (`--voice`, `--instructions` / `DEFAULT_INSTRUCTIONS`).
+    NOTE: instructions contain a speakable apology example and the model
+    once vocalized it (task4/variant02 intro). User decision: KEEP them.
+    Verify files with `tools/check_openai_audio_transcripts.py`, regenerate
+    only flagged files (ad-lib may recur with the same instructions).
 - Test split in `demo_bank.py` (`audio_root_for_variant`):
   variants 1-2 -> `ege_openai_test`, 3+ -> `ege`.
 - Roles: agent runs dry-runs only (no API key, no billing).
@@ -70,11 +74,17 @@ Total 20. Task1 text is read by the student, never voiced.
 
 ## Pending work (update as it moves)
 
-1. User generates variant-A test (variants 1-2, 28 files, ~$0.08),
-   listens in the app, approves quality.
-2. User generates the rest (3-20, 220 files, ~$0.62).
-3. Migrate `ege_openai_test/` -> `ege/`, remove the test split so all
-   variants use OpenAI audio, re-seed, commit.
+0. DONE: user keeps current TTS instructions (voice style).
+   All 244 OpenAI files (variant A) generated; transcript audit found 2
+   bad intros (task4/variant02+variant10, model ad-lib) — regenerated
+   with variant A and re-verified via checker.
+   Committed: TTS scripts, docs, full ege_openai_test/ set (244 mp3,
+   caches excluded), all-variants-to-test routing, whole manifest.
+1. Ear-checks (close before final migration): common/start_reading
+   ("stop"?) and task3/variant08/q1 ("teens"?).
+2. Full in-browser listening test of all variants.
+3. Final migration: BACK UP uncommitted Kokoro `ege/` first, then move
+   OpenAI audio to `ege/`, remove test routing, re-seed, commit.
 
 ## Key frontend files
 

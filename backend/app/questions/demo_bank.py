@@ -25,15 +25,22 @@ def task1_prompt(text: str) -> str:
 {text}"""
 
 
-def make_task1_question(question_id: str, text: str) -> Question:
+def audio_root_for_variant(variant: int) -> str:
+    # TEMPORARY test routing: all variants use OpenAI audio so the full set
+    # can be checked in the browser. Final migration moves files to /audio/ege.
+    return "/audio/ege_openai_test"
+
+
+def make_task1_question(question_id: str, text: str, *, variant: int) -> Question:
+    audio_root = audio_root_for_variant(variant)
     return Question(
         id=question_id,
         task_type="task1",
         prompt_text=task1_prompt(text),
         reference_text=text,
         audio=QuestionAudio(
-            intro="/audio/ege/task1/intro.mp3",
-            start_cue="/audio/ege/common/start_reading.mp3",
+            intro=f"{audio_root}/task1/intro.mp3",
+            start_cue=f"{audio_root}/common/start_reading.mp3",
         ),
         prep_seconds=90,
         record_seconds=90,
@@ -50,6 +57,7 @@ def make_task2_question(
     prompts: list[str],
 ) -> Question:
     prompt_lines = "\n".join(f"{index}) {point}" for index, point in enumerate(prompts, start=1))
+    audio_root = audio_root_for_variant(variant)
     return Question(
         id=question_id,
         task_type="task2",
@@ -65,12 +73,12 @@ def make_task2_question(
 You have 20 seconds to ask each question.""",
         task2_prompts=prompts,
         audio=QuestionAudio(
-            intro=f"/audio/ege/task2/variant{variant:02d}/intro.mp3",
+            intro=f"{audio_root}/task2/variant{variant:02d}/intro.mp3",
             question_cues=[
-                f"/audio/ege/task2/variant{variant:02d}/q1.mp3",
-                f"/audio/ege/task2/variant{variant:02d}/q2.mp3",
-                f"/audio/ege/task2/variant{variant:02d}/q3.mp3",
-                f"/audio/ege/task2/variant{variant:02d}/q4.mp3",
+                f"{audio_root}/task2/variant{variant:02d}/q1.mp3",
+                f"{audio_root}/task2/variant{variant:02d}/q2.mp3",
+                f"{audio_root}/task2/variant{variant:02d}/q3.mp3",
+                f"{audio_root}/task2/variant{variant:02d}/q4.mp3",
             ],
         ),
         prep_seconds=90,
@@ -90,6 +98,7 @@ Questions:
 
 def make_task3_question(question_id: str, *, variant: int, topic: str, questions: list[str]) -> Question:
     intro = f"Hello! It's Teenagers Round the World Channel. Our guest today is a teenager from Russia and we are going to discuss {topic}. Please answer five questions. So, let's get started."
+    audio_root = audio_root_for_variant(variant)
     return Question(
         id=question_id,
         task_type="task3",
@@ -104,15 +113,15 @@ The questions are played by the interviewer and are not shown on the screen, clo
         interviewer_intro=intro,
         interview_questions=questions,
         audio=QuestionAudio(
-            intro=f"/audio/ege/task3/variant{variant:02d}/intro.mp3",
+            intro=f"{audio_root}/task3/variant{variant:02d}/intro.mp3",
             question_cues=[
-                f"/audio/ege/task3/variant{variant:02d}/q1.mp3",
-                f"/audio/ege/task3/variant{variant:02d}/q2.mp3",
-                f"/audio/ege/task3/variant{variant:02d}/q3.mp3",
-                f"/audio/ege/task3/variant{variant:02d}/q4.mp3",
-                f"/audio/ege/task3/variant{variant:02d}/q5.mp3",
+                f"{audio_root}/task3/variant{variant:02d}/q1.mp3",
+                f"{audio_root}/task3/variant{variant:02d}/q2.mp3",
+                f"{audio_root}/task3/variant{variant:02d}/q3.mp3",
+                f"{audio_root}/task3/variant{variant:02d}/q4.mp3",
+                f"{audio_root}/task3/variant{variant:02d}/q5.mp3",
             ],
-            end="/audio/ege/common/interview_end.mp3",
+            end=f"{audio_root}/common/interview_end.mp3",
         ),
         prep_seconds=0,
         record_seconds=200,
@@ -154,6 +163,7 @@ In 2.5 minutes be ready to:
 
 You will speak for not more than 3 minutes: 12–15 sentences. You have to talk continuously."""
     bg1, accent1, bg2, accent2 = colors
+    audio_root = audio_root_for_variant(variant)
     return Question(
         id=question_id,
         task_type="task4",
@@ -165,8 +175,8 @@ You will speak for not more than 3 minutes: 12–15 sentences. You have to talk 
         ],
         image_captions=["Photo 1", "Photo 2"],
         audio=QuestionAudio(
-            intro=f"/audio/ege/task4/variant{variant:02d}/intro.mp3",
-            start_cue="/audio/ege/common/start_speaking.mp3",
+            intro=f"{audio_root}/task4/variant{variant:02d}/intro.mp3",
+            start_cue=f"{audio_root}/common/start_speaking.mp3",
         ),
         prep_seconds=150,
         record_seconds=180,
@@ -309,6 +319,7 @@ TASK1_QUESTIONS = [
     make_task1_question(
         "demo_task1_snowflakes_001" if index == 1 else f"curated_task1_{slug}_{index:03d}",
         text,
+        variant=index,
     )
     for index, (slug, text) in enumerate(TASK1_VARIANTS, start=1)
 ]
