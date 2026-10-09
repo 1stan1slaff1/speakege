@@ -3,6 +3,7 @@ from sqlalchemy import select
 from sqlalchemy.orm import Session
 
 from app.billing import FREE_REGISTERED_CREDITS, add_credits, get_credit_balance
+from app.services.email_policy import ensure_russian_email, normalize_email
 from app.services.guest import GUEST_ID_COOKIE_NAME
 from app.database import get_db
 from app.models.schemas import TokenResponse, UserLogin, UserRegister, UserResponse
@@ -13,15 +14,14 @@ from app.submissions import attach_guest_attempts_to_user
 router = APIRouter(prefix="/auth", tags=["auth"])
 
 
-def normalize_email(email: str) -> str:
-    return email.strip().lower()
-
-
 def validate_email(email: str) -> str:
     normalized = normalize_email(email)
     if "@" not in normalized or "." not in normalized.rsplit("@", 1)[-1]:
         raise HTTPException(status_code=400, detail="Введите корректный email.")
-    return normalized
+    try:
+        return ensure_russian_email(normalized)
+    except ValueError as exc:
+        raise HTTPException(status_code=400, detail=str(exc)) from exc
 
 
 def user_to_response(user: User, db: Session) -> UserResponse:

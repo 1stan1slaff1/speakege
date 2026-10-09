@@ -99,9 +99,12 @@ export default function RegisterPage() {
               type="email"
               value={email}
               onChange={(event) => setEmail(event.target.value)}
-              placeholder="you@example.com"
+              placeholder="vasya@yandex.ru"
               className="mt-1 w-full rounded-lg border border-gray-300 bg-white px-3 py-2 text-gray-900 outline-none focus:border-blue-500 focus:ring-2 focus:ring-blue-100"
             />
+            <span className="mt-1 block text-xs font-normal text-gray-500">
+              Только российская почта: Яндекс, Mail.ru, Рамблер, VK — требование закона.
+            </span>
           </label>
           <label className="block text-sm font-medium text-gray-700">
             Пароль

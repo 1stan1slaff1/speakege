@@ -82,7 +82,11 @@ Total 20. Task1 text is read by the student, never voiced.
 1. Ear-checks (close if still open): common/start_reading ("stop"?) and
    task3/variant08/q1 ("teens"?).
 2. Full in-browser listening test of all variants.
-3. Next feature candidates: payments (pricing page is a placeholder),
+3. Auth hardening: RU-domain-only registration DONE (strict allowlist in
+   `backend/app/services/email_policy.py`, plus-tags stripped).
+   Email confirmation NEXT: SMTP deferred (console backend for dev);
+   unverified-UX question open (no token vs zero-credit token).
+4. Next feature candidates: payments (pricing page is a placeholder),
    real Task4 images, Task1 pronunciation scoring.
 ## Key frontend files
 
